@@ -7,5 +7,5 @@ Detail:
 3. 'Compu_3.ipynb' and 'Compu_4.ipynb' are some applications of Grobner Basis to Stochastic Integer Programming.
 4. 'Compu_5.ipynb' reports the famous lagrange relaxation.
 5. 'Algsto.pdf' and 'Algsto2.pdf'  are the final reports.
-6. The realization of some algorithms are in the 'Programmes' file including computation of Toric Ideal, Graver Basis and new algorithms in integer programming especially favorable to stochastic integer programming.
+6. The realization of some algorithms are in the 'Programmes' folder including computation of Toric Ideal, Graver Basis and new algorithms in integer programming especially favorable to stochastic integer programming.
 
