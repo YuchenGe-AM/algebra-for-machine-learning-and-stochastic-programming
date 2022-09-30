@@ -1,4 +1,4 @@
-The reports and codes for the project on algebraic geometry methods to underpin Integer Programming and Stochastic Integer Programming under the supervision of Prof. Janosch Ortmann and Prof. Walter Rei at UQAM.
+The reports and codes for the project on algebraic geometry methods to introduce algorithms and reduce the computational cost of  Integer Programming and Stochastic Integer Programming under the supervision of Prof. Janosch Ortmann and Prof. Walter Rei at UQAM.
 
 Detail:
 
