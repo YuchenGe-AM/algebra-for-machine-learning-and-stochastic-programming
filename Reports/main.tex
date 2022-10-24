@@ -1,0 +1,950 @@
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{xy}
+\usepackage{geometry}
+\usepackage{hyperref}
+
+\usepackage[table]{xcolor}
+\setlength{\arrayrulewidth}{0.01mm}
+\setlength{\tabcolsep}{18pt}
+\renewcommand{\arraystretch}{1.5}
+
+\theoremstyle{plain}
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{algorithm}[theorem]{Algorithm}
+
+\geometry{a4paper,scale=0.8} 
+\title{Algebra for Machine Learning and Stochastic Programming}
+\author{Yuchen Ge}
+\date{August 2022}
+
+\begin{document}
+
+\maketitle
+\tableofcontents
+\newpage
+
+\begin{abstract}
+This article determines the relationship between Gröbner Basis of Integer Programming and Gröbner Basis of Stochastic Integer Programming. 
+\end{abstract}
+
+\section{What is a Stochastic Integer Programming(SIP)?}
+Instead of SIP (A universally acknowledged definition is unavailable), we give the definition of  Stochastic Mixed Integer Program. 
+
+\begin{definition}
+\label{SMIP}
+A Stochastic Mixed Integer Program (SMIP) is to solve 
+
+\begin{equation}
+\begin{array}{l}
+\min c^{T} x+\mathbb{E}[Q(x, \xi)] \\
+\text { s.t. } A x \geq b \\
+\quad x \in \mathbb{R}_{+}^{n_{1}} \times \mathbb{Z}_{+}^{p_{1}}
+\end{array}
+\end{equation}
+where  $\xi=(q, h, T, W)$  and
+$$
+\begin{aligned}
+Q(x, \xi)=\min &  q^{T} y \\
+\text { s.t. } & W y=h-T x \\
+& y \in \mathbb{R}_{+}^{n_{2}} \times \mathbb{Z}_{+}^{p_{2}} 
+\end{aligned}
+$$
+where x denotes the first-stage decision variables and  y  denotes the second-stage decision variables and sometimes we assume  $n_{1}, p_{1}, n_{2}$ , or  $p_{2}$  are zero, which depends.
+\end{definition}
+
+With Sample Average Approximation, we assume the random data  $\xi$  is represented by a finite set of scenarios: $\left(q^{i}, h^{i}, T^{i}, W^{i}\right), i=1, \ldots, N$, where scenario  $i$  occurs with probability  $p_{i}$.
+
+So we have the following extensive form (deterministic equivalent) of an SMIP. 
+
+\begin{definition} 
+Deterministic equivalent of an SMIP is 
+\begin{equation}
+\begin{array}{ll}
+\min & c^{T} x+\sum_{i=1}^{N} p_{i} q_{i}^{T} y_{i} \\
+\text { s.t. } & A x \geq b \\
+& T_{i} x+W_{i} y_{i}=h_{i} \\
+& x \in \mathbb{R}_{+}^{n_{1}} \times \mathbb{Z}_{+}^{p_{1}} \\
+& y_{i} \in \mathbb{R}_{+}^{n_{2}} \times \mathbb{Z}_{+}^{p_{2}}, \quad i=1, \ldots, N
+\end{array}
+\end{equation}
+\end{definition}
+
+When $n_1=0$ and $n_2=0$ (i.e. purely integral/combinatorial),  we have Method 1 to deal with it. And I will apply method 2 to deal with a Stochastic Program with Complete Integer Recourse, which is a SMIP when $p_1=n_2=0$ (i.e. first-stage continuous and second-stage combinatorial).
+
+\section{How can GB/AG methods help solve SIP?}
+\subsection{IP is a special case of SIP}
+An Integer Programming is a special case of SIP. Actually we can think of an Integer Programming problem as a SIP with only 1 scenario and without the first-stage decision (i.e. c=0).  Writing as 
+\begin{equation}
+\begin{array}{ll}
+\min &  p_{1} q_{1}^{T} y_{1} \\
+\text { s.t. } 
+& W_{1} y_{1}=h_{1} \\
+& y_{1} \in \mathbb{Z}_{+}^{p_{2}}, \quad s=1, \ldots, S
+\end{array}
+\end{equation}
+where the probability $p_1=1$.
+
+Then we recall how can GB/AG methods help solve SIP. 
+
+\subsection{Method 1: Application of Graver Basis}
+The subsection is based on \cite{ref4}.
+\subsubsection{Prerequisites on Test Sets}
+First before starting our analysis of stochastic programs, we collect some necessary prerequisites on test sets. For given  $A \in \mathbb{Q}^{l \times d}$ ( WLOG, we can transform the situation to  $A \in \mathbb{Z}^{l \times d}$ )  consider the family of optimization problems
+$$(I P)_{c, b}: \quad \min \left\{c^{T} z: A z=b, z \in \mathbb{Z}_{+}^{d}\right\}$$
+as  $c \in \mathbb{R}^{d}$  and $ b \in \mathbb{R}^{l}$  vary. It's worth mentioning that $(IP)_{c,b}$ also depends on the matrix $A$ but we omit it in the notation here.
+
+\begin{definition}
+A  set  $\mathcal{T}_{c} \subseteq \mathbb{Z}^{d}$  is called a test set for the family of problems  $(I P)_{c, b}$  as  $b \in \mathbb{R}^{l}$  varies if 
+\begin{enumerate}
+    \item $c^{T} t>0$  for all  $t \in \mathcal{T}_{c}$
+    \item for every  $b \in \mathbb{R}^{l}$  and for every non-optimal feasible solution  $z_{0} \in \mathbb{Z}_{+}^{d}$  to  $A z=b$ , there exists a vector  $t \in \mathcal{T}_{c}$  such that  $z_{0}-t$  is feasible. Such a vector is called an improving vector or an improving direction.
+\end{enumerate}
+\end{definition}
+
+It's clear from the definition that $\mathcal{T}_{c}\subset \operatorname{Ker}_{\mathbb{Z}}(A)$, i.e. $\mathcal{T}_{c} $ is composed of some special elements of $\operatorname{Ker}_{\mathbb{Z}}(A)$.
+
+\begin{definition}A set  $\mathcal{T}$  is called a universal test set for the family of problems $ (I P)_{c, b}$  as $ b \in \mathbb{R}^{l}$  and as  $c \in \mathbb{R}^{d}$  vary if it contains a test set  $\mathcal{T}_{c}$  for every  $c \in \mathbb{R}^{d}$ .
+\end{definition}
+
+We can relate them as: $ \text{Test Set}\subset\text{Universal Test Set}$. Then we assert 
+
+\begin{algorithm} Augmentation Algorithm (generate an optimal point from a feasible solution)\\
+\underline{Input:} a feasible solution  $z_{0}$  to  $(I P)_{c, b}$ , a test set  $\mathcal{T}_{c}$  for  $(I P)_{c, b}$  \\
+\underline{Output:} an optimal point  $z_{\min }$  of  $(I P)_{c, b}$ \\
+$\underline{\text {while}} $ there is  $t \in \mathcal{T}_{c}$  with  $c^{T} t>0$  such that  $z_{0}-t$  is feasible  $\underline{\text { do }} $
+$$z_{0}:=z_{0}-t$$
+ \underline{return:} $z_{0}$
+ \end{algorithm}
+ 
+ The algorithm will stop at finite steps since the $(IP)_{c,b}$ problem is considered bounded with respect to $>_c$.
+ 
+\begin{algorithm}Algorithm to Find a Feasible Solution \\
+$ \underline{\text {Input: }}$ a solution  $z_{1} \in \mathbb{Z}^{d}$  to  $A z=b$ , a universal test set  $\mathcal{T}$  for  $(I P)_{c, b}$ \\
+$ \underline{\text {Output: }}$ a feasible solution to  $(I P)_{c, b}$  or "FAIL" if no such solution exists\\
+$\underline{\text {while }}$ there is some  $g \in \mathcal{T}$  such that  $g \leq z_{1}^{+}$ and  $\left\|\left(z_{1}-g\right)^{-}\right\|_{1}<\left\|z_{1}^{-}\right\|_{1}$  $\underline{\text{do}} $\\
+$$z_{1}:=z_{1}-g$$
+$ \underline{\text { if }}\left\|z_{1}^{-}\right\|_{1}>0$  then $\underline{\text { return:}}$  "FAIL" $\underline{\text{else}}$ $\underline{\text{return:}}$  $z_{1}$ 
+\end{algorithm}
+
+Algorithm 2 simply transform an element  of $\mathbb{Z}^{d}$  to $\mathbb{Z}_{+}^{d}$. Finally by applying the above two algorithms we can easily find an optimum of  $(IP)_{c,b}$. Intuitively, we are decreasing the negative part $||z_1^{-}||$ every time, which follows that the algorithm will stop at finite steps since $z_1$ is an integer point. 
+
+\begin{algorithm} Algorithm to Find an Optimum of  $(I P)_{c, b}$  \\
+$ \underline{\text {Input: }}$ $ (I P)_{c, b}$ , a finite universal test set  $\mathcal{T}$  for $(I P)_{c, b}$ \\
+$\underline{\text {Output: }}$ an optimum solution to $ (I P)_{c, b}$  or "FAIL" if problem is not solvable \\
+$ z_{1}:=$  solution to  $A z=b$, $z \in \mathbb{Z}^{d} $ \\
+$\underline{\text{if}}$ no such solution exists $\underline{\text{then}}$ $\underline{\text{return}}$ "FAIL" \\
+$ z_{0}:=$  feasible solution  $\left(z_{1}, \mathcal{T}\right) $ (Algorithm 2) \\
+$\underline{\text{if}}$ no such solution exists $\underline{\text{then}}$ $\underline{\text{return}}$ "FAIL" \\
+$z_{\min }:=$  optimal solution  $\left(z_{0}, c, \mathcal{T}\right) $  (Algorithm 1) \\
+$\underline{\text {return:}} z_{\min }$  
+\end{algorithm}
+
+ \subsubsection{Construction of IP Graver Test Set}
+In the following we present a particular universal test set, the IP Graver test set, and show how to compute it. Let us first look at the Hilbert basis, and then use it construct the IP Graver basis.
+
+\begin{definition} (Hilbert Basis) \\
+Let  C  be a rational cone (If $ C$  is a rational cone, then  $C=\left\{a_{1} v_{1}+\cdots+a_{k} v_{k} \mid a_{i} \in \mathbb{R}_{+}, v_{i} \in \mathbb{Z}^{d}\right\}$ for some $v_i$.). A finite set  $H=\left\{h_{1}, \ldots, h_{t}\right\} \subseteq C \cap \mathbb{Z}^{d}$  is called a Hilbert basis of  C  if every  $z \in C \cap \mathbb{Z}^{d}$  has a representation of the form $$z=\sum_{i=1}^{t} \lambda_{i} h_{i}$$
+with  $\lambda_{1}, \ldots, \lambda_{t}\in \mathbb{Z}_{+}^{d}$.
+\end{definition}
+
+Then we define Graver basis, a special case of Gröbner Basis.
+
+ \begin{definition} Let  $O_{j}$  denote the  j-th orthant in  $\mathbb{R}^{n}$  where $ j \in\{+,-\}^{n}$ . Consider the cones $ C_{j}=\left\{u \in \mathbb{Z}^{n}: A . u=0\right\}\cap O_{j}$  for $ j \in\{+,-\}^{n}$. Let  $H_{j}$  be the unique, minimal Hilbert basis of the non-zero cone  $C_{j}$  (If $C_j=\emptyset$, simply omit it. ) and  then we define the Graver Basis of A to be $\mathcal{GR}_A=\bigcup H_{j} \backslash\{0\}$. 
+ \end{definition}
+
+0 is omitted in the definition of the Graver Basis since it's not of any use when it comes to construct a universal test set. We shall prove the proposition below. 
+
+ \begin{proposition} The Graver basis is a universal test set for the family of  $(IP)_{c,b}$ sharing the same coefficient matrix $A$. 
+ \end{proposition}
+
+\subsubsection{(Optional) relationship between the reduced Gröbner bases of $(IP)_{c,b} $ and the Graver Basis $\mathcal{GR}_A$}
+
+\begin{proposition} The Graver basis is a universal test set for the family of  $(IP)_{c,b}$ sharing the same coefficient matrix $A$.  
+\end{proposition}
+
+\noindent\textbf{Proof.} Let  c  be fixed.  And let  $\alpha$  be a non-optimal integer point in some fiber of  $(IP)_{c,b}$  in which  $\beta$  is the unique optimum for the composite order $>_c$. Then  $\alpha-\beta$  lies in one of the cones  $C_{j}$  described above. Let  $H_{j}$  be the Hilbert basis of this cone. Then $ \alpha-\beta=\sum z_{j_{i}} h_{j_{i}}$  where  $z_{j_{i}}$  are non-negative integers and the elements  $h_{j_{i}}$  belong to $ H_{j} \subset \mathcal{GR}_A$ . Since  $c \cdot \alpha>c \cdot \beta$ , there exists some  $h_{j_{i}}$  from the sum above such that  $c h_{j_{i}}>0$  which allows movement from  $\alpha$. Therefore  $\mathcal{GR}_{A}$  contains a test set for $(IP)_{c,b} $  with respect to every cost function  c  and so is a universal Gröbner basis for $(IP)_{c,b} $. \hfill $\square$ 
+
+\begin{proposition}Let $\mathcal{G}_{A, c}$ be the reduce  Gröbner basis of $(IP)_{\{c,b\}}$. Then $$ \bigcup_{c \in \mathbb{Z}^{n}} \mathcal{G}_{A, c} \subseteq \mathcal{G} \mathcal{R}_{A} .$$
+\end{proposition}
+
+\noindent\textbf{Proof.} Suppose  $\alpha-\beta$  lies in the pointed cone  $C_{j}$  with Hilbert basis  $H_{j}$ . If  $\alpha-\beta$  is not an element of  $H_{j}$ , then  $\alpha-\beta=v+w$  for  $v, w \in C_{j} \cap \mathbb{Z}^{n}$ from the definition of Hilbert Basis (definition 6). At least one of  $c v>0 $ or  $c w>0$  since  $c(\alpha-\beta)>0$. Therefore we can move from  $\alpha$  to a less expensive point using one of $ v $ or  $w$. This contradicts that  $\alpha$  was an essential generator of the set of non-optimal points in the various fibers of  $(IP)_{c,b}$. \hfill $\square$ \\
+
+So intuitively, a Graver basis is a larger Universal Gröbner Basis.
+
+We give an important lemma important in the following context, which is the following extension of Gordan-Dickson Lemma  ([\cite{ref9}, p.44]) 
+
+\begin{definition} Assume $a=(a_1,a_2,...,a_n)$ and $b=(b_1,b_2,...,b_n)$ in $\mathbb{Z}^{n}$ . Then  $a \sqsubseteq b$ if and only if  $\forall i$:  $a_{i} b_{i} \geq 0 $ and $\left|a_{i}\right| \leq\left|b_{i}\right|$ . 
+\end{definition}
+
+\begin{lemma}(Gordan-Dickson Lemma, $\sqsubseteq$-version)\\
+\indent 1. Every sequence  $\left\{p_{1}, p_{2}, \ldots\right\}$  of points in $ \mathbb{Z}^{n}$  such that  $p_{i} \not\sqsubseteq p_{j}$  whenever  $i<j $ is finite. \\
+\indent 2. Every infinite set  $S \subseteq \mathbb{Z}^{n} $ contains only finitely many  $\sqsubseteq$ -minimal points.
+\end{lemma}
+
+By constricting $ \mathbb{Z}^{n}$ to $ \mathbb{Z}_{+}^{n}$ we come back to the classical version of Gordan-Dickson Lemma. For completeness, we also give the monomial-version of the lemma which will be used later.
+
+\begin{lemma}(Gordan-Dickson Lemma, monomial-version)\\
+\indent 1.  Every sequence  $\left\{I_{1}, I_{2}, \ldots\right\}$  of monomial ideals in a polynomial ring with  $I_{j} \not\subset I_{i}$  whenever $ i<j$  is finite.\\
+\indent 2.  Every infinite collection of   $\mathcal{I}$   of monomial ideals in a polynomial ring contains only finitely many inclusion maximal monomial ideals. 
+\end{lemma}
+
+Then we give the definition of positive sum property, which is not fully used until in the appendix.
+
+\begin{definition}(Positive Sum Property) \\
+A set  G  has the positive sum property with respect to  $S \subseteq \mathbb{R}^{d}$  if $ G \subseteq S$  and if any non-zero  $v \in S$  can be written as a finite linear combination  $v=\sum \alpha_{i} g_{i}$  with\\
+\indent 1.  $g_{i} \in G$, $\alpha_{i}>0$, $\alpha_{i} g_{i} \in S$\\
+\indent 2.  for all  i, $g_{i}$  and  $v$  belong to the same orthant, that  is, $g_{i}^{(k)} v^{(k)} \geq 0$  for every component  $k=1, \ldots, d $. 
+\end{definition}
+
+\begin{lemma} $\mathcal{GR}_{A} $ is the inclusion minimal subset of  $\operatorname{ker}_{\mathbb{Z}^{d}}(A)$  that has the positive sum property with respect to  $\operatorname{ker}_{\mathbb{Z}^{d}}(A)$.  (Definition of positive sum property is in the appendix.) 
+\end{lemma}
+
+\noindent\textbf{Proof.} Take any non-zero element  $z \in \operatorname{ker}_{\mathbb{Z}^{d}}(A) $. Then  $z$  belongs to some orthant  $\mathbb{O}_{j}$  and thus can be written as a positive integer linear combination of elements of the Hilbert basis  $H_{j} \subseteq \mathcal{GR}_{A}$  of  $\operatorname{ker}_{\mathbb{Z}^{d}}(A) \cap \mathbb{O}_{j}$ . As, by construction, each element  $z \in \mathcal{GR}_{A}$  cannot be written as a non-trivial sum of two vectors from  $\operatorname{ker}_{\mathbb{Z}^{d}}(A)$  that lie in the same orthant as  z, z  must be contained in every set that has the minimal sum property with respect to  $\operatorname{ker}_{\mathbb{Z}^{d}}(A)$. This proves minimality of  $\mathcal{GR}_{A}$ . \hfill$\square$
+
+\begin{theorem} $\mathcal{G} \mathcal{R}_{A}$  is finite. 
+\end{theorem}
+
+\noindent\textbf{Proof.} From lemma 2.15, we give an alternative definition of the Graver basis of an integer matrix  A: \textbf{the finite set  of  $\sqsubseteq$-minimal elements in  $\left\{u \in \mathbb{Z}^{n}: A \cdot u=0,u\neq 0\right\}$}. Then we apply the famous Gordan-Dickson Lemma ($\sqsubseteq$-version) above. \hfill $\square$\\
+
+\subsubsection{Decomposition of Graver Test Sets for Two-Stage Stochastic
+Integer Programs}
+
+To solve the SIP, which is equivalent to the mixed-integer linear program
+\begin{equation}
+\min \left\{c^{T} x+\sum_{i=1}^{S} p_{i} q_{i}^{T} y_{i}: A x= b, x \in \mathbb{Z}_{+}^{m}, T x+W y_{i}=h_{i}, y_{i} \in \mathbb{Z}_{+}^{n}, i=1, \ldots, N\right\}
+\end{equation}where we assume all entries in  A, T , and  W  to be rational (integral). \textbf{It's worth mentioning that only q and h is random here. And it's a necessary condition for the method to be useful.  } This is because the method depends on the shape of the matrix $A_N$ below.
+
+To study Graver test sets of (4) we consider the matrix with N denotes the number of scenarios:
+$$
+A_{N}:=\left(\begin{array}{ccccc}
+A & 0 & 0 & \cdots & 0 \\
+T & W & 0 & \cdots & 0 \\
+T & 0 & W & \cdots & 0 \\
+\vdots & \vdots & \vdots & \ddots & \vdots \\
+T & 0 & 0 & \cdots & W
+\end{array}\right)
+$$
+
+Problem (4) may then be written as  $\min \left\{c^{T} z: A_{N} z=b, z \in \mathbb{Z}_{+}^{d}\right\}$  with  $d=m+N \cdot n$.  For completeness, we shall write down the Algorithm to Compute Integer Programming Graver Test Sets as below.
+
+\begin{algorithm} (Normal Form Algorithm)  \\
+$ \underline{\text {Input: }}$a vector  $s$ , a set  $G$  of vectors \\
+$\underline{\text {Output: }}$ a normal form of  s  with respect to  G  \\
+$\underline{\text{while}}$ there is some  $g \in G$  such that  $g \sqsubseteq s $ $\underline{\text { do }} $\\
+$s:=s-g$ \\
+$\underline{\text {return:}} s$  \end{algoritm}
+
+In  algorithm 4, a normal form of s is a new vector from the original one that cannot be reduced anymore.
+
+\begin{algorithm}(Algorithm to Compute IP Graver Test Sets) \\
+$ \underline{\text {Input: }}$  $F=\bigcup_{f \in F(A)}\{f,-f\}$, where  F(A)  is a set of vectors generating  $\operatorname{ker}(A)$  over  $\mathbb{Z}$  \\
+$\underline{\text {Output: }}$ a set  G  which contains the IP Graver test set  $\mathcal{G}(A)$ \\
+$ G:=F $ \\
+ $C:=\bigcup_{f, g \in G} \{f+g\} $ \\
+$\underline{\text{while}}$ $ C \neq \emptyset \underline{\text { do }} $\\
+\indent  $s:=$  an element in  C \\
+\indent $C:=C \backslash\{s\}$ \\ 
+\indent $f:=\operatorname{normalForm}(s, G) $\\
+\indent $\underline{\text{if}}$  $f \neq 0$  then (forming S-vectors)
+$$
+\begin{array}{l}
+C:=C \cup \bigcup_{g \in G}\{f+g\} \quad \text { (adding S-vectors) } \\
+G:=G \cup\{f\}
+\end{array}
+$$
+\indent $\underline{\text{return:}}$  G 
+\end{algorithm}
+
+From the lemma below, we can have a glimpse of the decomposition method.
+
+\begin{lemma}$\left(u, v_{1}, \ldots, v_{N}\right) \in \operatorname{ker}\left(A_{N}\right) \text { if and only if }\left(u, v_{1}\right), \ldots,\left(u, v_{N}\right) \in \operatorname{ker}\left(A_{1}\right)$.
+\end{lemma}
+
+\begin{definition} Let $ z=\left(u, v_{1}, \ldots, v_{N}\right) \in \operatorname{ker}\left(A_{N}\right)$  and call the vectors  $u, v_{1}, \ldots, v_{N}$  the building blocks of  z . Denote by  $\mathcal{G}_{N}$  the Graver test set associated with  $A_{N} $ and collect into  $\mathcal{H}_{N}$  all those vectors arising as building blocks of some  $z \in \mathcal{G}_{N}$. By  $\mathcal{H}_{\infty}$  denote the set  $\bigcup_{N=1}^{\infty} \mathcal{H}_{N}$.
+\end{definition}
+
+The set  $\mathcal{H}_{\infty}$ contains both  m-dimensional vectors  u  associated with the first-stage in (4) and  n-dimensional vectors  v  related to the second-stage in (4). For fixed $u\in  \mathcal{H}_{\infty}$, all those vectors $v\in  \mathcal{H}_{\infty}$ are collected into $V_u$ for which $(u,v) \in
+\operatorname{ker}(A_1)$. For convenience, we will arrange the vectors in  $\mathcal{H}_{\infty}$  into pairs  $\left(u, V_{u}\right) $. \\
+
+\begin{theorem}$\mathcal{H}_{\infty}$ is finite. 
+\end{theorem}
+
+To prove it, we first give a definition of inclusion (pairs version).
+
+\begin{definition}We define  $\left(u^{\prime}, V_{u^{\prime}}\right) $ reduces  $\left(u, V_{u}\right)$ , or  $\left(u^{\prime}, V_{u^{\prime}}\right) \sqsubseteq\left(u, V_{u}\right) $, if the following conditions are satisfied: \\
+\indent 1. $u^{\prime} \sqsubseteq u$, \\
+\indent 2. for every  $v \in V_{u}$  there exists a  $v^{\prime} \in V_{u^{\prime}}$  with  $v^{\prime} \sqsubseteq v$ .\\
+\indent 3. $ u^{\prime} \neq 0$  or there exist vectors  $v \in V_{u}$  and $ v^{\prime} \in V_{u^{\prime}}$  with  $0 \neq v^{\prime} \sqsubseteq v$ .
+\end{definition}
+
+\begin{definition} We associate with $ \left(u, V_{u}\right), u \neq 0$ , the monomial ideal  $I\left(u, V_{u}\right) \in Q\left[x_{1}, \ldots, x_{2 m+2 n}\right]$  generated by all the monomials  $x^{\left(u^{+}, u^{-}, v^{+}, v^{-}\right)}$ with  $v \in V_{u}$ , whereas we associate with  $\left(0, V_{0}\right)$  the monomial ideal $ I\left(0, V_{0}\right) \in Q\left[x_{1}, \ldots, x_{2 n}\right]$  generated by all the monomials  $x^{\left(v^{+}, v^{-}\right)}$ with $ v \neq 0$  and  $v \in V_{0}$ .
+\end{definition}
+
+\begin{lemma}Let  $\left(u, V_{u}\right),\left(u^{\prime}, V_{u^{\prime}}\right) $ with  $u, u^{\prime} \neq 0$ . Then  $I\left(u, V_{u}\right) \subseteq I\left(u^{\prime}, V_{u}^{\prime}\right)$  implies  $\left(u^{\prime}, V_{u^{\prime}}\right) \sqsubseteq\left(u, V_{u}\right) $.
+\end{lemma}
+\noindent\textbf{Proof.} Since both $ I\left(u, V_{u}\right)$  and $ I\left(u^{\prime}, V_{u^{\prime}}\right)$  are monomial ideals, we have  $I\left(u, V_{u}\right) \subseteq I\left(u^{\prime}, V_{u^{\prime}}\right)  $ iff. every generator  $x^{\left(u^{+}, u^{-}, v^{+}, v^{-}\right)}$ of  $I\left(u, V_{u}\right)$  is divisible by some generator  $x^{\left(\left(u^{\prime}\right)^{+},\left(u^{\prime}\right)^{-},\left(v^{\prime}\right)^{+},\left(v^{\prime}\right)^{-}\right)}$ of  $I\left(u^{\prime}, V_{u^{\prime}}\right)$  (cf. \cite{ref3}). The latter implies that  $u^{\prime} \sqsubseteq u$  and that for every  $v \in V_{u}$  there exists  $v^{\prime} \in V_{u^{\prime}}$  with $ v^{\prime} \sqsubseteq v$. In other words, we have  $\left(u^{\prime}, V_{u^{\prime}}\right) \sqsubseteq\left(u, V_{u}\right)$. \hfill$\square$\\
+
+In a parallel way,  we can prove 
+
+\begin{lemma}$I\left(0, V_{0}\right) \subset I\left(0, V_{0}^{\prime}\right)$ implies $\left(0, V_{0}^{\prime}\right) \sqsubseteq\left(0, V_{0}\right) $ .\end{lemma}
+
+Now we are in the position to prove lemma 6 on sequences of pairs. \\
+
+\begin{lemma}Let  $\left\{\left(u_{1}, V_{u_{1}}\right\},\left(u_{2}, V_{u_{2}}\right), \ldots\right)$  be a sequence of pairs such that  $u_{i} \neq 0$  for all $ i=1,2, \ldots$ , and such that  $\left(u_{i}, V_{u_{i}}\right) \nsubseteq\left(u_{j}, V_{u_{j}}\right)$  whenever  i<j . Then this sequence is finite.\end{lemma}
+
+\noindent \textbf{Proof.} Consider the sequence  $\left\{I\left(u_{1}, V_{u_{1}}\right), I\left(u_{2}, V_{u_{2}}\right), \ldots\right\}$  of monomial ideals. By Lemma 3.9, it fulfils  $I\left(u_{j}, V_{u_{j}}\right) \nsubseteq I\left(u_{i}, V_{u_{i}}\right)$  whenever $ i<j$ . Thus, by Corollary 3.6, this sequence is finite implying that the sequence  $\left(\left(u_{1}, V_{u_{1}}\right),\left(u_{2}, V_{u_{2}}\right), \ldots\right)$  is finite, as well. \hfill$\square$ \\
+
+In a parallel way,  we can also prove 
+
+\begin{lemma} Let $ \left\{\left(0, V_{1}\right),\left(0, V_{2}\right), \ldots\right\}$  be a sequence of pairs such that such that $ \left(0, V_{i}\right) \nsubseteq\left(0, V_{j}\right) $ whenever  $i<j$ . Then this sequence is finite. 
+\end{lemma}
+
+Together with above two lemmas we can prove the following lemma. 
+
+\begin{lemma} Let  $\left(\left(u_{1}, V_{u_{1}}\right),\left(u_{2}, V_{u_{2}}\right), \ldots\right)$  be a sequence of pairs such that  $\left(u_{i}, V_{u_{i}}\right) \nsubseteq\left(u_{j}, V_{u_{j}}\right)$  whenever $ i<j$ . Then this sequence is finite.\end{lemma}
+
+\noindent\textbf{Proof.} Suppose the sequence  $\left(\left(u_{1}, V_{u_{1}}\right),\left(u_{2}, V_{u_{2}}\right), \ldots\right)$  is not finite. Consider the subsequence where all  $u_{i}$  are non-zero and the subsequence where all  $u_{i}$  are zero. One of these subsequences is not finite and satisfies  $\left(u_{i}, V_{u_{i}}\right) \nsubseteq\left(u_{j}, V_{u_{j}}\right)$  whenever $ i<j$. But this contradicts one of the two preceding lemmas. \hfill$\square$\\
+
+A result from the finite steps of algorithm 7 below.
+
+\begin{definition} For fixed  $u \in \mathcal{H}_{\infty} $, all those vectors $ v \in \mathcal{H}_{\infty}$  are collected into  $V_{u}$  for which  $(u, v) \in   \operatorname{ker}\left(A_{1}\right)$. \end{definition}
+
+By generalizing the operators to pairs, we can compute $\mathcal{H}_{\infty}$ as below.
+
+\begin{definition} The plus of pairs is $\left(u, V_{u}\right) \oplus\left(u^{\prime}, V_{u^{\prime}}\right):=\left(u+u^{\prime}, V_{u}+V_{u^{\prime}}\right)$ and correspondingly the minus of pairs to be  $\left(u, V_{u}\right) \ominus\left(u^{\prime}, V_{u^{\prime}}\right):=\left(u-u^{\prime},\left\{v-v^{\prime}: v \in V_{u}, v^{\prime} \in V_{u^{\prime}}, v^{\prime} \sqsubseteq v\right\}\right)$.\end{definition}
+
+\begin{algorithm}(Normal Form Algorithm)  \\
+$ \underline{\text {Input: }}$a vector  $s$ , a set  $G$  of pairs \\
+$\underline{\text {Output: }}$ a normal form of  s  with respect to  G  \\
+$\underline{\text{while}}$ there is some  $g \in G$  such that  $g \sqsubseteq s \underline{\text { do }} $ \\
+$s:=s\ominus g$ \\
+$\underline{\text {return:}}  s$ \end{algorithm}
+
+\begin{algorithm} (Algorithm to Compute $\mathcal{H}_{\infty}$ (building blocks of IP Graver Test Sets)) \\
+$ \underline{\text {Input: }}$ a generating set F of $\operatorname{ker}(A_1)$ which contains a generating set for
+$\{(0,v) : W v = 0\} \subset \operatorname{ker}(A_1)$ \\
+$\underline{\text {Output: }}$a set G which contains $\mathcal{H}_{\infty}$ \\
+$ G:=F $ \\
+ $C:=\bigcup_{f, g \in G} \{f\oplus g\} $ \\
+$\underline{\text{while}}$ $ C \neq \emptyset \underline{\text { do }} $\\
+\indent  $s:=$  an element in  C \\
+\indent $C:=C \backslash\{s\}$ \\ 
+\indent $f:=\operatorname{normalForm}(s, G) $\\
+\indent $\underline{\text{if}}$  $f \neq (0,\{0\})$  then (forming S-vectors)
+$$
+\begin{array}{l}
+C:=C \cup \bigcup_{g \in G}\{f\oplus g\} \quad \text { (adding S-vectors) } \\
+G:=G \cup\{f\}
+\end{array}
+$$
+\indent $\underline{\text{return:}}$  G \end{algorithm}
+
+\begin{theorem} Algorithm 6 and 7 terminates and satisfies its specifications.\end{theorem}
+
+\noindent\textbf{Proof.} In the course of the algorithm, a sequence of pairs  f  in  $G \backslash F$  is generated that satisfies the conditions of Lemma 8. Therefore, Algorithm 7  terminates.
+
+To show that  $\mathcal{H}_{\infty} \subseteq G $, we have to prove that  $\mathcal{H}_{N} \subseteq G$  for all  $N \in \mathbb{Z}_{+} $. Fix  $N$  and start a Graver test set computation (Algorithm 2.7) with  $\bar{F}:=\left\{\left(u, v_{1}, \ldots, v_{N}\right):\left(u, V_{u}\right) \in G, v_{i} \in V_{u}\right\}$  as input set.  $\bar{F}$  generates  $\operatorname{ker}\left(A_{N}\right)$  over  $\mathbb{Z}$  for all  $N \in \mathbb{Z}_{+}$ , since $ F_{N} \subseteq \bar{F}$  by the assumption on the input set to Algorithm 3.15, cf. Lemma 3.17.
+
+It's easy to show that all sums  $z+z^{\prime}$  of two elements  $z, z^{\prime} \in \bar{F}$  reduce to $0$ with respect to  $\bar{F}$ . In this case, Algorithm  2.7  returns the input set  $\bar{F}$  which implies  $\mathcal{G}_{N} \subseteq \bar{F}$  ($\mathcal{G}_{N} $ denotes the Graver test set associated with $A_N$) . Therefore,  $\mathcal{H}_{N} \subseteq G$  as desired.  \hfill$\square$
+
+\subsubsection{Algorithm to Two-Stage Stochastic Integer Programs with $\mathcal{H}_{\infty}$}
+Suppose we are given an integer solution  $z_{1}=\left(u, v_{1}, \ldots, v_{N}\right) \text { to } A_{N} z=b$. \\
+
+\begin{lemma} Suppose  $z_{1}=\left(u, v_{1}, \ldots, v_{N}\right) \ngeq 0$  and there exists no pair  $\left(u^{\prime}, V_{u^{\prime}}\right) \in \mathcal{H}_{\infty}$  such that \\
+\indent 1.  $u^{\prime} \leq u^{+}$  \\
+\indent 2. for all  $i=1, \ldots, N$ there exists $ \bar{v}_{i} \in V_{u^{\prime}}: \bar{v}_{i} \leq v_{i}^{+}$ ,\\
+\indent 3.  $\left(c^{\prime}\right)^{T} z^{\prime}>0$ , where  $z^{\prime}=\left(u^{\prime}, v_{1}^{\prime}, \ldots, v_{N}^{\prime}\right)$  and  $v_{i}^{\prime} \in \operatorname{argmax}\left\{\left(c_{i}^{\prime}\right)^{T} v: v \leq v_{i}^{+}, v \in V_{u^{\prime}}\right\}$  for $ i=1, \ldots, N $.
+Then there exists no feasible solution of  $A_{N} z=b, z \in \mathbb{Z}_{+}^{m+N n}$. If there exists such a pair  $\left(u^{\prime}, V_{u^{\prime}}\right) \in \mathcal{H}_{\infty}$  then  $\left\|\left(z_{1}-z^{\prime}\right)^{-}\right\|_{1}<\left\|z_{1}^{-}\right\|_{1}$. \end{lemma}
+
+And Suppose we are given $\mathcal{H}_{\infty} \text {, a cost function } c \text { and a feasible solution } z_{0}=\left(u, v_{1}, \ldots, v_{N}\right) $. 
+
+\begin{lemma}Suppose there exists no pair  $\left(u^{\prime}, V_{u^{\prime}}\right) \in \mathcal{H}_{\infty}$  with the properties \\
+\indent 1.  $u^{\prime} \leq u$ , \\
+\indent 2. for all  $i=1, \ldots, N$  there exists  $\bar{v}_{i} \in V_{u^{\prime}}: \bar{v}_{i} \leq v_{i}$, \\
+\indent 3.  $c^{T} z^{\prime}>0$, where  $z^{\prime}=\left(u^{\prime}, v_{1}^{\prime}, \ldots, v_{N}^{\prime}\right)$  and  $v_{i}^{\prime} \in \operatorname{argmax}\left\{c_{i}^{T} v: v \leq v_{i}, v \in V_{u^{\prime}}\right\}$  for  $i=1, \ldots, N$. \\
+Then  $z_{0}=\left(u, v_{1}, \ldots, v_{N}\right)$  is optimal for  $\min \left\{c^{T} z: A_{N} z=b, z \in \mathbb{Z}_{+}^{d}\right\}$. If there exists such a pair  $\left(u^{\prime}, V_{u^{\prime}}\right) \in \mathcal{H}_{\infty}$  then $ z_{0}-z^{\prime}$  is feasible and it holds  $c^{T}\left(z_{0}-z^{\prime}\right)<c^{T} z_{0}$. 
+\end{lemma}
+\noindent\textbf{Proof.} Suppose that  $z_{0}$  is not optimal. Then there is some vector $ z^{\prime \prime}=\left(u^{\prime \prime}, v_{1}^{\prime \prime}, \ldots, v_{N}^{\prime \prime}\right) \in \mathcal{G}_{N}$  such that  $z_{0}-z^{\prime \prime}$  is feasible and  $c^{T}\left(z_{0}-z^{\prime \prime}\right)<c^{T} z_{0}$ . Feasibility of  $z_{0}-z^{\prime \prime}$  implies  $z_{0}-z^{\prime \prime} \geq 0$ , hence  $z^{\prime \prime} \leq z_{0}$. Therefore,  $u^{\prime \prime} \leq u$  and  $v_{i}^{\prime \prime} \leq v_{i}, i=1, \ldots, N$ , the latter implying that for any  $i=1, \ldots, N$  there exists a $ \bar{v}_{i} \in V_{u^{\prime \prime}}$  such that  $\bar{v}_{i} \leq v_{i}$. Let  $z^{\prime}:=\left(u^{\prime \prime}, v_{1}^{\prime}, \ldots, v_{N}^{\prime}\right) $ where $ v_{i}^{\prime} \in \operatorname{argmax}\left\{c_{i}^{T} \bar{v}_{i}: \bar{v}_{i} \leq v_{i}, \bar{v}_{i} \in V_{u^{\prime \prime}}\right\} $.
+Now $ c^{T}\left(z_{0}-z^{\prime \prime}\right)<c^{T} z_{0}$  implies that  $ c^{T} z^{\prime \prime}>0$ . Moreover,  $c^{T} z^{\prime} \geq c^{T} z^{\prime \prime}>0$. In conclusion, the pair  $\left(u^{\prime \prime}, V_{u^{\prime \prime}}\right)$  fulfils conditions 1. to 3. , proving the first claim of the lemma.
+
+With  $z^{\prime}=\left(u^{\prime}, v_{1}^{\prime}, \ldots, v_{N}^{\prime}\right)$  according to 3. we obtain  $c^{T}\left(z_{0}-z^{\prime}\right)<c^{T} z_{0}$ . Moreover  $v_{i}^{\prime} \leq v_{i}, i=1, \ldots, N$ , and  $u^{\prime} \leq u$  together imply  $ z_{0}-z^{\prime} \geq 0$ . Finally,  $\left(u^{\prime}, v_{1}^{\prime}, \ldots, v_{N}^{\prime}\right) \in \operatorname{ker}\left(A_{N}\right)$ , and therefore  $A_{N}\left(z_{0}-z^{\prime}\right)=A_{N} z_{0}+0=b$  which completes the proof. \hfill$\square$\\
+
+As  $\mathcal{H}_{\infty}$  contains only finitely many pairs $\left(u^{\prime}, V_{u^{\prime}}\right) $, lemma 2.34  and  lemma 2.35  provide a finite algorithm to construct an improving vector or to prove that no such vector can be constructed from the pairs in  $\mathcal{H}_{\infty}$.\\
+
+\begin{theorem}Under the assumption that the optimization problem  $\min \left\{c^{T} z: A_{N} z=b, z \in Z_{+}^{m+N \cdot n}\right\}$  is solvable, an optimal solution can be computed in finitely many steps by application of Algorithm  3  together with the improving vector construction procedures based on Lemma 10 and lemma 10'.\end{theorem}
+
+The improving vector construction procedures based on Lemma 2.34 and  lemma 2.35  yield an improving vector in linear time with respect to the number  N  of scenarios. In accordance with that, I observed in the preliminary test runs that the method is fairly \textbf{insensitive} with respect to the number of scenarios. Of course, this becomes effective only after  $\mathcal{H}_{\infty}$  has been computed. Some experiments have shown that $\mathcal{H}_{\infty}$ is not complex and even $\mathcal{H}_{\infty}=\mathcal{H}_{2}$. 
+
+\subsection{Method 2: Application of Level Sets for Candidates}
+The subsection is based on \cite{ref5}}.
+
+\subsubsection{Transformation of the Original Problem}
+
+To solve the two-stage stochastic integer programming 
+\begin{equation}
+\min \left\{c^{T} x+\sum_{i=1}^{S} p_{i} q^{T} y_{i}: A x= b, x\in \mathbb{R}_{+}^{n}, W y_{i}\geq T x - h_{i}, y_{i} \in  \mathbb{Z}_{+}^{d},  i=1, \ldots, N\right\}
+\end{equation}where all A, T, W are integer matrices without loss of generality.
+
+Here we change (5) to the equivalent form (6)
+\begin{equation}
+\min \left\{c^{T} x+Q(x): Ax=b, x\in \mathbb{R}_{+}^{n}\right\}
+\end{equation}
+
+where
+\begin{equation}
+Q(x)=min\left \{
+\sum_{i=1}^{S} p_{i} q^{T} y_{i}: W y_{i}\geq T x - h_{i}, y_{i}  \in \mathbb{Z}_{+}^{d}, i=1, \ldots, N\right\}
+\end{equation}
+
+\subsubsection{Construct of the Set of Candidates }
+
+It's known that function  Q  is constant on 
+$$
+\begin{aligned}
+C(\bar{x}) &=\bigcap_{i=1}^{r}\left\{x:\left\lceil T x-h_{i}\right\rceil=\left\lceil T \bar{x}-h_{i}\right\rceil\right\}=\bigcap_{i=1}^{r}\left\{x:\left\lceil T^{j} x-h^{j}_{i}\right\rceil=\left\lceil T^{j} \bar{x}-h^{j}_{i}\right\rceil\right\} \\
+&=\bigcap_{i=1}^{r} \bigcap_{j=1}^{p}\left\{x:\left\lceil T^{j} \bar{x}-h^{j}_{i}\right\rceil+h^{j}_{i}-1<T^{j} x \leqslant\left\lceil T^{j} \bar{x}-h^{j}_{i}\right\rceil+h^{j}_{i}\right\} .
+\end{aligned}
+$$for every $\bar{x}$ in the domain, where the superscripts denotes the components of vectors. \\
+
+\begin{definition} The countable set  V , given by $V=\left\{x \in \mathbb{R}^{n}: x \text { is a vertex of } C(x) \cap C\right\},$ is called the set of candidates; an element of  V  is called a candidate point. 
+\end{definition}
+
+The following theorem justifies its name. 
+
+\begin{theorem}Let  V , the set of candidates, be non-empty. If  $\operatorname{argmin}\{c x+Q(x): x \in C\} \neq \emptyset$  then  $V \bigcap \operatorname{argmin}\{c x+Q(x): x \in C\} \neq \emptyset$.  
+\end{theorem}
+
+Theorem 5 guarantees us that we only need to find $argmin\{cx+Q(x)\}$ within V. But it might not be a finite set. With the help of the following lemma, we can further restrict it to a finite set. 
+
+\begin{lemma}Let  X  be a non-empty set, and  $f$  and  $\bar{f}$  real functions on  X  such that  $\bar{f}(x) \leqslant f(x)$  for all  $x \in X$. Then, for all  $\bar{x} \in X$ ,
+$$ \underset{x \in X}{\operatorname{argmin}} f(x) \subset\{x \in X: \bar{f}(x) \leqslant f(\bar{x})\}.$$
+
+Moreover, the difference between these sets is smaller according as  $\bar{f}$  is a better approximation of  $f $ and  $f(\bar{x})$  is a better approximation of  $\inf _{x \in X} f(x)$ . In particular, if  $\bar{f}(\bar{x})=f(\bar{x}) $ and  $\bar{x} \in \operatorname{argmin}_{x \in X} \bar{f}(x) $  then  $\bar{x} \in \operatorname{argmin}_{x \in X} f(x)$ .
+\end{lemma}
+
+\noindent \textbf{Proof.} For any  $\bar{x} \in X $, we have.
+$$
+\begin{aligned}
+\underset{x \in X}{\operatorname{argmin}} f(x) &=\bigcap_{y \in X}\{x \in X: f(x) \leqslant f(y)\} \subset \bigcap_{y \in X}\{x \in X: \bar{f}(x) \leqslant f(y)\} \\
+& \subset\{x \in X: \bar{f}(x) \leqslant f(\bar{x})\}
+\end{aligned}
+$$
+\hfill $\square$\\
+
+So we can further restrict the V to finite sets with the help of corresponding level sets $L(c\bar{x}+Q(\bar{x}))=\{x:cx+Q_R(x)\leq c\bar{x}+Q(\bar{x})\}$, where the subscript R denotes continuous relaxation of the problem $Q(x)$. It suffices that we can compute the objective value  $c x_{r}+Q\left(x_{r}\right) $ and construct the partial level sets  $L\left(c x_{r}+Q\left(x_{r}\right)\right) $ where $x_{r}$  be the optimal solution of the continuous relaxation of (6).
+
+\subsubsection{Algorithm to Two-Stage Stochastic Integer Programming with candidates}
+
+We outline the overall  algorithm as follows. \\
+
+\noindent \indent 1. Compute the Gröbner basis for the second stage IP problem 
+
+\noindent \indent 2. Solve the continuous relaxation of (6) and obtain a partial list of vertices in the dual feasible region. Let  $x_{r}$  be the optimal solution. 
+
+\noindent \indent 3. Compute the objective value  $c x_{r}+Q\left(x_{r}\right) $ and construct the partial level sets  $L\left(c x_{r}+Q\left(x_{r}\right)\right) $ 
+
+\noindent \indent 4. For every candidate point in the level set, evaluate the objective function, using the Gröbner basis to compute the expected value function  $Q$. They are evaluated as per an enumeration scheme.
+
+\section{What's the relationship between the corresponding Gröbner Basis?}
+\subsection{Relationship concerning Graver Basis in Method 1}
+We shall see the relationship between the Graver Basis (Universal Gröbner Basis) of the SIP 
+\begin{equation}
+\min \left\{c^{T} x+\sum_{i=1}^{N} p_{i} q_{i}^{T} y_{i}: A x= b, x  \in \mathbb{Z}_{+}^{m}, T x+W y_{i}=h_{i}, y_{i}  \in \mathbb{Z}_{+}^{n}, i=1, \ldots, N\right\}
+\end{equation}
+and that of the IP
+\begin{equation}
+\min \left\{c^{T} x+ p_{1} q_{1}^{T} y_{}: A x = b, x  \in \mathbb{Z}_{+}^{m}, T x+W_{} y_{}=h_{}, y_{}  \in \mathbb{Z}_{+}^{n} \right\}
+\end{equation}
+Then we assert \\
+
+\begin{lemma}  Graver basis of an integer matrix  A can also be described by the finite set  of  $\sqsubseteq$-minimal elements in  $\left\{u \in \mathbb{Z}^{n}: A \cdot u=0,u\neq 0\right\}$.(See Proposition 4.14 of \cite{ref10}).\end{lemma}
+
+\begin{theorem} (new/true) Denote the  Graver Basis of  (8) by $\mathcal{GR}_{N}$, and that of (9) by $\mathcal{GR}_{1}$, $i=1,2,...,N$. Then if $\operatorname{Ker}_{\mathbb{R}}(A)=0$, we have $$\mathcal{GR}_{N}=\{(0,0,...,v_i,...,0):(0,v_i)\in \mathcal{GR}_{1},i=1,2,...,n\}$$\end{theorem}
+
+\noindent\textbf{Proof.}  First we present the corresponding coefficient matrix of (5) is of the form
+$$
+A_N:=\left(\begin{array}{ccccc}
+A & 0 & 0 & \cdots & 0 \\
+T & W & 0 & \cdots & 0 \\
+T & 0 & W & \cdots & 0 \\
+\vdots & \vdots & \vdots & \ddots & \vdots \\
+T & 0 & 0 & \cdots & W
+\end{array}\right)
+$$
+and  the corresponding coefficient matrix of (6) is of the form 
+$$
+A_{1}:=\left(\begin{array}{cc}
+A & 0  \\
+T & W  \\
+\end{array}\right)
+$$
+So we can check that $\operatorname{Ker}_{\mathbb{Z}}(A_N)=(0,v_1,v_2,...,v_n):(0,v_i)\in \operatorname{Ker}_{\mathbb{Z}}(A_1) \}$ since $\operatorname{Ker}_{\mathbb{R}}(A)=0$. Then we apply lemma 3.1 above.\\
+
+Recall that for two vectors $a=(a_1,a_2,...,a_n)$ and $b=(b_1,b_2,...,b_n)$ in $\mathbb{Z}^{n}$ , $a \sqsubseteq b$ if and only if  $\forall i$:  $a_{i} b_{i} \geq 0 $ and $\left|a_{i}\right| \leq\left|b_{i}\right|$ . So from $\operatorname{Ker}_{\mathbb{Z}}(A)=(0,v_1,v_2,...,v_n):(0,v_i)\in \operatorname{Ker}_{\mathbb{Z}}(A_i) \}$, we can see that the  $\sqsubseteq$-minimal elements of the whole matrix A has a single component being the  $\sqsubseteq$-minimal elements of the  matrix $A_i$, and vice versa. So we immediately arrive at the conclusion. \hfill $\square$\\
+
+\begin{theorem}  (new/true) Denote all building blocks of Graver Basis of  (8) by $\mathcal{H}_{N}$. Then we have for $N\geq 2$ $$\mathcal{H}_N=\mathcal{H}_2$$\end{theorem}
+
+\noindent\textbf{Proof.} It's trivial that $\mathcal{H}_1\subset\mathcal{H}_2\subset \mathcal{H}_3...$ and the first stage elements in each  $\mathcal{H}_n$ are all the same. Then it can be seen from the algorithm that for any $N\geq 2$, $\mathcal{H}_N$ is the union of $\mathcal{H}_1$ and the $\sqsubseteq$-minimal elements of $\{x\in\operatorname{Ker}_{\mathbb{Z}}(A_1):x\not\sqsubseteq y \text{ for some }y\in \mathcal{H}_1 \}$, from which we can see it's independent of $N$. \hfill $\square$
+
+\subsection{Relationship concerning Gröbner Basis in Method 2}
+
+This is clear to see, for the SIP 
+\begin{equation}
+\min \left\{c^{T} x+\sum_{i=1}^{N} p_{i} q^{T} y_{i}: A x= b, x \in \mathbb{R}_{+}^{n}, W_{} y_{i}\geq T x - h_{i}, y_{i} \in \mathbb{Z}_{+}^{d}, i=1, \ldots, N\right\}
+\end{equation}
+and that of the IP
+\begin{equation}
+\min \left\{c^{T} x+ p_{1} q^{T} y_{1}: A x= b, x \in \mathbb{R}_{+}^{n}, W y_{1}\geq T x- h_{1}, y_{} \in \mathbb{Z}_{+}^{d} \right\}
+\end{equation}
+Then we assert that they \textbf{share the same Gröbner Basis} since every step of the algorithm  only manipulates the sub-problem
+\begin{equation}
+Q(x)=min\left \{
+\sum_{i=1}^{S} p_{i} q^{T} y_{i}: W y_{i}\geq T x - h_{i}, y_{i}  \in \mathbb{Z}_{+}^{d}, i=1, \ldots, N\right\}
+\end{equation}
+
+\section{Computational Results}
+We use Maple to compute some examples by implementing the algorithm. The results are listed in row vectors on the right of the two tables below.
+\begin{center}
+\begin{tabular}{ |c|c| }
+\hline
+\multicolumn{2}{|c|}{Implementation Result 1} \\
+\hline
+ Input Matrix &Graver Basis \\
+ \hline
+ $
+ \left[\begin{array}{ccccc}
+1 & 0 & 0 & 0 & 0 \\
+0 & 1 & 0 & 0 & 0 \\
+1 & 0 & 2 & 4 & 8 \\
+0 & 1 & 3 & 6 & 12
+\end{array}\right]$   &   $ \left[\begin{array}{ccccc}
+0 & 0 & 0 & 2 & -1 \\
+0 & 0 & 2 & -1 & 0 \\
+0 & 0 & 2 & 1 & -1 \\
+0 & 0 & 4 & 0 & -1
+\end{array}\right]$  \\
+\hline 
+$\left[\begin{array}{cccccccc}
+1 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\
+0 & 1 & 0 & 0 & 0 & 0 & 0 & 0 \\
+1 & 0 & 2 & 4 & 8 & 0 & 0 & 0 \\
+0 & 1 & 3 & 6 & 12 & 0 & 0 & 0 \\
+1 & 0 & 0 & 0 & 0 & 2 & 4 & 8 \\
+0 & 1 & 0 & 0 & 0 & 3 & 6 & 12
+\end{array}\right]$ & $\left[\begin{array}{cccccccc}
+0 & 0 & 0 & 0 & 0 & 0 & 2 & -1 \\
+0 & 0 & 0 & 0 & 0 & 2 & -1 & 0 \\
+0 & 0 & 0 & 2 & -1 & 0 & 0 & 0 \\
+0 & 0 & 2 & -1 & 0 & 0 & 0 & 0 \\
+0 & 0 & 0 & 0 & 0 & 2 & 1 & -1 \\
+0 & 0 & 2 & 1 & -1 & 0 & 0 & 0 \\
+0 & 0 & 0 & 0 & 0 & 4 & 0 & -1 \\
+0 & 0 & 4 & 0 & -1 & 0 & 0 & 0
+\end{array}\right]$     \\
+\hline
+\end{tabular}
+\end{center}
+
+and another demonstrating example.
+
+\begin{center}
+\begin{tabular}{ |c|c| }
+\hline
+\multicolumn{2}{|c|}{Implementation Result 2} \\
+\hline
+ Input Matrix &Graver Basis \\
+ \hline
+ $
+\left[\begin{array}{cccc}
+4 & 5 & 0 & 0 
+\\
+ 4 & 5 & 0 & 0 
+\\
+ 5 & 7 & 3 & 9 
+\\
+ 10 & 14 & 6 & 18 
+\end{array}\right]$   &  $ \left[\begin{array}{cccc}
+0 & 0 & 3 & -1 
+\\
+ 5 & -4 & 1 & 0 
+\\
+ 5 & -4 & -2 & 1 
+\\
+ 10 & -8 & -1 & 1 
+\\
+ 15 & -12 & 0 & 1 
+\end{array}\right] $ \\
+\hline 
+$\left[\begin{array}{cccccc}
+4 & 5 & 0 & 0 & 0 & 0 
+\\
+ 4 & 5 & 0 & 0 & 0 & 0 
+\\
+ 5 & 7 & 3 & 9 & 0 & 0 
+\\
+ 10 & 14 & 6 & 18 & 0 & 0 
+\\
+ 5 & 7 & 0 & 0 & 3 & 9 
+\\
+ 10 & 14 & 0 & 0 & 6 & 18 
+\end{array}\right]$ & $\left[\begin{array}{cccccc}
+0 & 0 & 0 & 0 & 3 & -1 
+\\
+ 0 & 0 & 3 & -1 & 0 & 0 
+\\
+ 5 & -4 & 1 & 0 & 1 & 0 
+\\
+ 5 & -4 & 1 & 0 & -2 & 1 
+\\
+ 5 & -4 & -2 & 1 & 1 & 0 
+\\
+ -5 & 4 & 2 & -1 & 2 & -1 
+\\
+ 10 & -8 & -1 & 1 & -1 & 1 
+\\
+ 10 & -8 & 2 & 0 & -1 & 1 
+\\
+ 10 & -8 & -1 & 1 & 2 & 0 
+\\
+ 15 & -12 & 0 & 1 & 0 & 1 
+\\
+ 15 & -12 & 3 & 0 & 0 & 1 
+\\
+ 15 & -12 & 0 & 1 & 3 & 0 
+\end{array}\right]$     \\
+\hline
+\end{tabular}
+\end{center}
+
+The two examples above are consistent with the results of  theorem 6 and theorem 7.
+
+\section{Further Study}
+1. We can further generalize method 1 to the situation of  SMIP by the corresponding SMIP Graver test set , thanks to \cite{ref1}. Some progress has been made in appendix.\\
+2. Refinement of level sets in method 2.
+
+\section{Appendix}
+\subsection{(Optional/new) Test Set = (Reduced) Gröbner Basis}
+Assume A to be an integer matrix, we further study the relationship between Test Set and (Reduced) Gröbner Basis of 
+$$(IP)_{c,b}: \text{min } \{cx: Ax=b \text{ and } x\in N^{n}\}
+$$
+First we need to transfer $IP_{c,b}$ to $IP_{>_{c},b}$ where $>_c$ denotes the complete total order. 
+
+\begin{definition}$>_c$ is the complete total order satistifying: $x>_c$ y  if \\
+\noindent 1.$c\cdot x>c\cdot y$ or\\
+\noindent 2. $c\cdot x>c\cdot y$ and $x>y$ where $>$ is an arbitrarily assigned monomial order.
+\end{definition}
+
+Note that $>_c$ satisfies (Attention: it's not a term order but almost is!)\\
+\noindent 1. $>_c$ is a total order on $N^{n}$. \\
+\noindent 2. $>_c$ is cmpatible with sum. \\
+
+Therefore we may make use of the refinement so as to get to the unique optimum.
+
+\begin{lemma} $\exists \alpha_{i}$ s.t. $\{\text{non-optimal solutions of all fibres}\}=\bigcup_{i=1}^{t}(\alpha(i)+N^{n})$  (immediate consequence of Gordan Dickson Lemma$^{\cite{ref3}}$) \end{lemma}
+
+\begin{theorem} $\exists$ testing set for $(IP)_{c,b}$. \end{theorem}
+
+\noindent\textbf{Proof.} (Geometric)  First we construct $\mathcal{G}_{A}=\{(\alpha(i)-\beta(i)),i=1,2,...,t\}$ where $\alpha(i)$ is given below and $\beta(i)$ is the corresponding unique optimum point of $(IP)_{>_c,b}(A \alpha (i))$.  Then we apply lemma 6.2.
+
+We can therefore draw an arrow from $\alpha(i)$ to $\beta(i)$ and translate it to all feasible points in $IP_{\{A,c\}}$ such that the translated vector is incident at the corresponding feasible points. By this construction we get to a connected digraph with the unique sink at the optimum point. 
+
+It's an easy corollary that $\mathcal{G}_{A}$ is a test set. \hfill $\square$ \\
+
+How does the name birth? We need to look at the map below and Theorem 7 explains everything. (We denote $A=[A_1,A_2,...,A_n]$ by column blocking and $y^{A_1}$ short for a monomial of $k[y_1,y_2,...,y_m]$ where m is the column number of A)
+\begin{align*}
+\pi:  k[x_1,x_2,...,x_n] & \to k[y^{A_1},y^{A_2},...,y^{A_n}] \\
+ x_{i} & \rightarrowtail y^{A_i}
+\end{align*}
+First we define a $\mathbb{Z}$-linear mapping
+\begin{align*}
+ \pi_*:  \mathbb{Z}^{n} & \to\mathbb{Z}^{m} \\
+ u & \rightarrowtail  Au
+\end{align*}
+Then $\pi$ and $\pi_*$ are related as $\pi(x^u)=\pi(x_{1}^{u_1}x_{2}^{u_2}...x_{n}^{u_n})=y^{A_1 u_1}...y^{A_n u_n}=y^{A u}=y^{\pi_*(u)}$.
+ we call the kernel of $\pi$ as \textbf{toric ideal} of A, denoted by $I_A$. \\
+ 
+ \begin{lemma}The toric ideal  $I_{A}$  is spanned as  $k$-vector space by the set of binomials  $$J=\left\{x^{u}-x^{v} \mid u, v \in \mathbb{N}^{n} \text { with } \pi_* (u)=\pi_* (v)\right\}. $$ \end{lemma}
+ 
+\noindent\textbf{Proof.}A binomial  $x^{u}-x^{v}$  lies in $ I_{A}$  if and only if  $\pi\left(x^{u}-x^{v}\right)=\pi\left(x^{u}\right)-\pi\left(x^{v}\right)=   x^{\pi_*(u)}-x^{\pi_*(v)}=0$. What remains to show is that every polynomial  $f \in I_{A}$  is a linear combination of such binomials with coefficients in  $k$ . Fix a term order  $<$  on $ k\left[x_{1}, \ldots, x_{n}\right]$ . Suppose $ f \in I_{A} $ can not be written as such a linear combination. Choose $ f $ such that  $L M_{<}(f)=x^{u}$  is smallest with respect to  $<$  for all such polynomials. Since  $f \in I_{A}$  we know
+$$0=\pi(f)=f\left(y^{A_{1}} \cdots y^{A_{n}}\right)=y^{\pi_*(u)}+\text { other terms. }$$
+
+In particular, we know that the term  $y^{\pi_*(u)}$  must cancel. Therefore, there exists a monomial  $x^{v}$  in  f , with  $x^{u}>x^{v}$  such that  $\pi(u)=\pi(v)$ . We know that  $f^{\prime}=f-\left(x^{u}-x^{v}\right)$  cannot be written as a  $k$-linear combination of binomials since otherwise  $f$  could. Since now  $L M(f)<L M\left(f^{\prime}\right)$ , we come to a contradiction for the minimality property of  f. The lemma is then proved. \hfill $\square$ \\
+ 
+\begin{theorem}(optional) $I_A = Ker(\pi) = <(x^{\alpha(i)}-x^{\beta(i)}),i=1,2,...,s>$. And actually $\{x^{\alpha(i)}-x^{\beta(i)},i=1,2,...,s\}$ forms a reduced Grobner basis. \end{theorem}
+
+\noindent\textbf{Proof.} Define
+$$\phi(u):=x^{u^+}-x^{u^-}$$
+
+Then we carry out to prove the theorem. First, it's trivial that $x^{\alpha_i}-x^{\beta_i}\in Ker(\pi_*)$ since $A\alpha_i=A\beta_i$.
+
+Since $\alpha_i >_c \beta_i$ for all $i= 1,...,s$, we have that 
+$$ LM_{>_c}(x^{\alpha_i}-x^{\beta_i})=x^{\alpha_i} \implies \big<x^{\alpha_i}\big> \subset LM_{>_c}(Ker(\pi)).
+$$From the lemma  it is enough to show that  $x^{\alpha} \in\left\langle x^{\alpha(i)}, i=1, \ldots, s\right\rangle$  for each binomial  $x^{\alpha}-x^{\beta} \in J$ . We may assume that $LM_{>}(x^{\alpha}-x^{\beta})=x^{\alpha}.$ Now  $LM_{>}\left(x^{\alpha}-x^{\beta}\right)=x^{\alpha}$  implies that  $\alpha>_{c} \beta$. Therefore  $\alpha$  is a nonoptimal point with respect to $ >_{c}$  in the  $A \alpha $-fiber of IP. Therefore  $\alpha$  is in the set of all nonoptimal points from all fibers of IP, which is $\bigcup_{i=1}^{s}\left(\alpha(i)+\mathbb{N}^{n}\right)$. This implies that  $\alpha=\alpha(i)+v$  for some  $i \in\{1, \ldots, s\}$  and  $v \in \mathbb{N}^{n}$. Therefore  $x^{\alpha(i)}$  divides  $x^{\alpha}$  which in turn implies that  $x^{\alpha} \in\left\langle x^{\alpha(i)}, i=1, \ldots, s\right\rangle$. Therefore  $\{x^{\alpha(i)}-x^{\beta(i)},i=1,2,...,s\}$  is a Gröbner basis for  $I_A$  with respect to  $>_{c}$, which is clearly reduced observing from their construction.\hfill $\square$ \\
+
+We  give a general method for specifying monomial orders on $k[x_1, . . . , x_n]$.  We assert the following lemma  without proof since it's useful to prove the theorem below.
+ 
+\begin{lemma} Given any $m \times n$ real matrix M and an monomial order $>$. Then we define $x^{\alpha}>_M x^{\beta}$ if and only if $$ M\cdot \alpha >M\cdot \beta.$$ Let M be an $m \times n$ real matrix with non-negative entries s.t. $ker(M) \cap \mathbb{Z}^{n}= \{0\}$.Then $>_M$ is a monomial order on $k[x_1, . . . , x_n]$. (See Exercise 8 of §2 of \cite{ref2}.) \end{lemma}
+
+\begin{theorem} (optional/new)  By giving different term order $>$ for $>_c$, we can use the $>_c$ and the corresponding geometric bunchberger algorithm to get all optimum points of the problem $IP_{c,b}$. (Recall that we should specify the composite order to use the geometric bunchberger's algorithm.)\end{theorem}
+
+\noindent\textbf{Proof.}  Suppose the optimum of the $(IP)_{c,b}$ forms a set $\{x_1,x_2,...,x_m\}$. Then it's clear $\forall j$ $ \exists c>0( c\cdot x_j\neq c\cdot x_i,\forall i\neq j$). Actually we can prove it by contradiction: since $\sum_{i}m(\{c:c\cdot x_j= c\cdot x_i\})$=0, there must exist some c such that $c\cdot x_j\neq c\cdot x_i,\forall i\neq j$. ($m()$ denotes the Lebesgue measure.)
+
+Therefore we can find the interval ($a_j,\tilde{a}_j$] $\subset \mathbb{R}$ s.t. \\
+\indent \indent 1. $c\cdot x_i \in$ ($a_i,\tilde{a}_i$], $\forall i$.  \\
+\indent  \indent 2. ($a_j,\tilde{a}_j$] $\cap$  ($a_i,\tilde{a}_i$]=$\emptyset,\forall i\neq j$.  
+
+Then we define a total order on $\mathbb{R}$, denoted by $>_{s}$ s.t.  \\
+\indent \indent 1. Define $ A=\big(\mathbb{R}-\bigcup_{i\neq j}$($a_i,\tilde{a}_i$]$\big)$, $B = \bigcup_{i\neq j}$($a_i,\tilde{a}_i$], and $C =$($a_j,\tilde{a}_j$]. \\
+\indent \indent 2. All the elements in $A,B,C$ are compared in the usual way. \\
+\indent \indent 3. If $a\in A,b\in B,c\in C$, a and b are compared in the usual way; $b<c$; $a<c$ iff.  $\exists d\in B(a \leq d)$. 
+
+Therefore we get to a total order on $\mathbb{R}$ such that $b<_{s}c$ whenever $b\in B$ and $c\in C$. Applying the order $>_{s}$ to build up the monomial order on $k[x_1, . . . , x_n]$ as follows. We let
+$$M=\begin{pmatrix} c^T \\ ... \end{pmatrix}$$
+where $...$ is filled with positive numbers such that M satisfies the conditions of lemma 3.
+
+Finally we can form the composite order $>_c$ of cost and $>_M$, which satisfies $x_j >_{c} x_i,\forall j\neq i$. \hfill $\square$
+
+\subsection{Improvement in IP }
+Recently, various algebraic integer programming (IP) solvers have been proposed based on the theory of Gröbner bases. The main difficulty of these solvers is the size of the Gröbner bases generated. So we propose an algorithm calculating the test set of $(IP)_{c,b}$ much faster.\\
+
+Recall that 
+
+\begin{align*}
+\pi:  k[x_1,x_2,...,x_n] & \to k[y^{A_1},y^{A_2},...,y^{A_n}] \\
+ x_{i} & \rightarrowtail y^{A_i}
+\end{align*}
+
+and
+\begin{align*}
+ \pi_*:  \mathbb{Z}^{n} & \to\mathbb{Z}^{m} \\
+ u & \rightarrowtail  Au
+\end{align*}
+From the above section, we know that the algorithm in Gröbner bases of IP is to find a "minimal" generator of $Ker(\pi)$ , i.e. $Ker(\pi_*)$.
+
+From \cite{ref6}, we have an important observation. First we recall the definition
+$$\phi(u):=x^{u^+}-x^{u^-}.$$
+
+\begin{theorem}Let $K \in \mathbb{N}^{k\times n}$. Then $\phi(K)=\phi(span(K))$\end{theorem}
+
+We let K be a basis for $Ker(\pi_*)$ consisting of k elements (to simplify notation, we will use K to denote a basis for $Ker(\pi_*)$ as well as the matrix in $\mathbb{Z}^{k\times n}$ whose rows are the vectors in K). 
+
+\begin{theorem}For $K,K'\in \mathbb{Z}^{k\times n}$, define $K'\sim K$ if $\text{span} K' = \text{span} K$, i.e. $K' = AK$ for some $A\in \mathbb{Z}^{k\times k}$ s.t. $|\text{det}(A)|=1$. \end{theorem}
+
+From definition we immediately get 
+
+\begin{proposition}Let $K\in \mathbb{Z}^{k\times n}$. Then there exists a $\tilde{K}\sim K$ such that each column vector of $\tilde{K}$ is either in $\mathbb{N}^k$ or $(-\mathbb{N})^k$. \end{proposition}
+
+From Proposition 3, we get to $\tilde{K}$. Then let $J \subset \{1, 2, ..., n\}$ be the index set of all columns with negative entries, and let $K'$ be the matrix obtained from $\tilde{K}$ by reversing all signs in the columns indexed by J. 
+
+Here's another important observation. First we define $T_j:\mathbb{Z}^n \to \mathbb{Z}^n $ as the operator that switches the sign of the $j$-th component of the vectors in $\mathbb{Z}^n$. Further, if $p \in k[x_1,...,x_n]$ has the form $p = \phi(u)$ for some $u\in\mathbb{Z}^n$ , we denote $T_j (p) = \phi(T_j(u))$. 
+
+\begin{theorem}Let  $K \in \mathbb{Z}^{k \times n}$  and assume that there exists a finite set  $U \subset \operatorname{span} K$  such that  $\langle\varphi(U)\rangle=\langle\varphi(\operatorname{span} K)\rangle$. If G  is the reduced Gröbner basis for  $\langle\varphi(U)\rangle$, with respect to a term order that eliminates  $x_{j}$ , then $ \left\langle T_{j} G\right\rangle=\left\langle\varphi\left(\operatorname{span}\left(T_{j} K\right)\right)\right\rangle$. \end{theorem}
+
+We are now ready to describe our algorithm to calculate  $\operatorname{ker} \pi$. Let K be a basis for $\operatorname{ker}  \pi_{*}$. By Lemma  3.8  there exists an equivalent basis  $K^{\prime}$  such that each column of  $K^{\prime}$  is either in  $\mathbb{N}^{n}$  or in  $(-\mathbb{N})^{n}$. Let  $J \subseteq\{1,2, \ldots, n\}$  be the index set of all columns with negative entries, and let  $K_{J}^{\prime}$  be the matrix obtained from  $K^{\prime}$  by reversing all signs in the columns indexed by J. By Theorem 2, 
+$$\left\langle\varphi\left(K_{J}^{\prime}\right)\right\rangle=\left\langle\varphi\left(\operatorname{span} K_{J}^{\prime}\right)\right\rangle .$$
+
+If  $J=\varnothing$  we are done. If  $J \neq \varnothing$ , let  $j$  be any element of  $J$. Theorem 3 enables us to derive from  $\varphi\left(K_{J}^{\prime}\right)$  a finite set of generators for  $\left\langle\varphi\left(\operatorname{span} K_{J \backslash\{j\}}^{\prime}\right)\right\rangle$. Compute the Gröbner basis for  $\varphi\left(K_{J}^{\prime}\right)$  with respect to a term order that eliminates  $x_{j}$  and apply the operator  $T_{j}$  to it. Proceeding recursively, we can calculate a finite set of generators for  $\varphi\left(\operatorname{span} K_{J}^{\prime}\right)$, which by Theorem 2 equals $\operatorname{ker} \pi_*$ .
+
+\begin{proposition}(new) The proposed algorithm requires the determination of at most $[\frac{1}{2}n]$ Grobner bases over $k[x_1,x_2,...,x_n]$. \end{proposition}
+
+\noindent\textbf{Proof. }Actually the number of determination is at most the number of the elements of $J$.
+
+Remark: based on the (empirical) fact that the complexity of the
+Buchberger algorithm is a strongly growing function of the number of variables, we conclude that it's in general more efficient to evaluate $[\frac{1}{2}n]$ Grobner bases over $k[x_1,x_2,...,x_n]$ than one Grobner basis over $k[x_1,x_2,...,x_n,y_1,y_2,...,y_m]$. \hfill $\square$\\
+
+The algorithm in P392 of \cite{ref2} is based on the Elimination lemma applied to the  $k[x_1,x_2,..,x_n,y_1,y_2,...,y_m]$, which is \textbf{not applicable in large scale}. And so is the  Geometric Buchberger’s algorithm$^{[1]}$. So from literature [4], we give a new idea of algorithm below
+$$\text{Finding Reduced Grobener Basis}\to \text{Augmentation Algorithm}$$
+The detailed algorithm to solve the IP is gathered as follows. The value of the algorithm is that it is more efficient to calculate a moderate number of Gröbner bases over  $k[x_1,...,x_n]$  instead of  over  $K[x_1,...,x_n, y_1,...,y_m]$ . This is especially true for the memory requirements of the proposed algorithm.\\
+
+\begin{algorithm}(new) computation of reduced Gröbner bases \\
+\noindent 1. Calculate a basis $K$ for $\operatorname{ker} \pi_{*}$. \\
+\noindent  2. Find an equivalent basis  $K^{\prime}$  such that all rows of  $K^{\prime}$  lie in the same orthant. \\
+\noindent  3. Let  $J$  be the index set of all columns with negative entries and let  $K_{J}^{\prime}$  be the matrix obtained from  $K^{\prime}$  by reversing the signs of the columns indexed by  $J$.  \\
+\noindent  4. Let $G_{J}=\varphi\left(K_{J}^{\prime}\right)$. \\
+\noindent  5. Until  $J=\varnothing$ , repeat this: Take  $j \in J$  and let  $G_{J \backslash\{j\}}$  be the result of $T_{j}$ operating on the reduced Gröbner basis for  $<G_{J}>$ with respect to a term order that eliminates  $x_{j}$ ; then let  $J \leftarrow   J \backslash\{j\}$ . \\
+\noindent  6. Output  $G_{\varnothing}$ , a generating set for  $\operatorname{ker} \pi $ which is finite.\\
+\noindent 7. Use $G_{\varnothing}$ to generate the reduced grobner Basis $\{x^{\alpha(i)}-x^{\beta(i)}:i=1,2...,s\}$. (e.g. apply BunchBerger Algorithm)\\
+\noindent  8. Augmentation Algorithm. \end{algorithm}
+
+\subsection{Generalization to SMIP }
+The subsection is based on \cite{ref1}. \\
+
+Method 2 applying Graver Basis can be generalized to the SMIP case as we will discover below. \\
+
+Let  $\mathbb{Z}, \mathbb{Q}, \mathbb{R}$  denote the integers, rationals, and reals, respectively. Moreover, let  $\mathbb{X}=\mathbb{Z}^{d_{1}} \times \mathbb{R}^{d_{2}}$ , and denote by $ \mathbb{X}_{+}$ the corresponding non-negative orthant. For given $ d=d_{1}+d_{2}$, $A \in \mathbb{Z}^{l \times d}$, $c \in \mathbb{R}^{d}$ , and  $b \in \mathbb{R}^{l}$ , let $$ (\mathrm{P})_{c, b}: \quad \min \left\{c^{T} z: A z=b, z \in \mathbb{X}_{+}\right\} $$
+be the family of mixed-integer linear optimization problems as  $c \in \mathbb{R}^{d}$  and  $b \in \mathbb{R}^{l}$  vary. Then for MIP, we first generalize the concept of test sets. \\
+
+\begin{definition} (Test Set)\\
+ A  set  $\mathcal{T} \subseteq \mathbb{R}^{d}$  is called a test set for $ (\mathrm{P})_{c, b}$  if \\
+\indent 1.  $c^{T} t>0$  for all $ t \in \mathcal{T}$ \\
+\indent 2. for every $ b \in \mathbb{R}^{l}$  and for every non-optimal feasible point  $z_{0}$  of $ (\mathrm{P})_{c, b}$  there exist a vector  $t \in \mathcal{T}$  and a scalar  $\alpha>0$  such that  $z_{0}-\alpha t$  is feasible.
+\end{definition}
+
+In contrast to the common definition of test sets we do not impose finiteness on T. This allows a treatment of test sets for mixed-integer programs which need not be finite
+in general. Once a test set $\mathcal{T}$ for and a feasible solution $z_0$ to $(P)_{c,b}$ are available, we have a clear corresponding augmentation algorithm. We omit writing it down. 
+
+We will discuss the positive sum property, \textbf{a property inherent to LP, IP, and MIP Graver test sets}, and develop, based on this property, a common notational and algorithmic framework for Graver test sets. This simplification of notation and algorithms is an important basis for the development and presentation of fast algorithms to compute Hilbert bases and extremal rays of pointed rational cones, and of a novel decomposition approach to two- and multi-stage stochastic programs. In both applications even the LP cases turn out to be important and of interest.
+
+\begin{definition} (Positive Sum Property) \\
+A set  G  has the positive sum property with respect to  $S \subseteq \mathbb{R}^{d}$  if $ G \subseteq S$  and if any non-zero  $v \in S$  can be written as a finite linear combination  $v=\sum \alpha_{i} g_{i}$  with\\
+\indent 1.  $g_{i} \in G$, $\alpha_{i}>0$, $\alpha_{i} g_{i} \in S$\\
+\indent 2.  for all  i, $g_{i}$  and  $v$  belong to the same orthant, that  is, $g_{i}^{(k)} v^{(k)} \geq 0$  for every component  $k=1, \ldots, d $. 
+\end{definition}
+
+The following lemma was already proved by Graver $^{\cite{ref8}}$.\\
+
+\begin{lemma} (Positive Sum Property implies Universal Test Set Property) \\
+If  G  has the positive sum property with respect to  $\operatorname{ker}_{\mathbb{X}}(A) $ then  G  is a universal test set for  $(\mathrm{P})_{c, b}$ .\\
+
+First, we give without the proof of following lemma. \end{lemma}
+
+\begin{lemma}(Criterion for Positive Sum Property with respect to Integer Lattice) \\
+Let  $\Lambda$  be an integer sublattice of  $\mathbb{Z}^{d}$ . A symmetric set  $G \subseteq \Lambda$  has the positive sum property with respect to  $\Lambda$  if and only if the following two conditions hold: \\
+\indent 1. G finitely generates  $\Lambda$  over  $\mathbb{Z}$  \\
+\indent 2. for every pair  $v, w \in G$ , the vector  $v+w$  can be written as a finite linear combination $ v+w=\sum \alpha_{i} g_{i}$ , where for all $ i$ we have  $g_{i} \in G, \alpha_{i} \in \mathbb{Z}_{>0}$ , and  $g_{i} \sqsubseteq v+w$.\\
+Herein, a set  G  is called symmetric if  $v \in G$  implies  $-v \in G$ . \end{lemma}
+
+From the above lemma we can prove that 
+
+\begin{lemma}The Completion Algorithm 5 terminates and satisfies its specifications. \end{lemma}
+
+\noindent\textbf{Proof. } Termination of the above algorithm follows immediately by application of the Gordan-Dickson Lemma to the sequence  $\left\{\left(v^{+}, v^{-}\right): v \in G \backslash F\right\} \subseteq \mathbb{Z}_{+}^{2 d}$. To this end, note that  $f=  normalForm  (s, G)$  implies that there is no  $g \in G$  with  $g \sqsubseteq f$ , i.e., there is no  $g \in G$  with  $\left(g^{+}, g^{-}\right) \leq\left(f^{+}, f^{-}\right)$ . Thus, the algorithm produces a sequence  $\left\{\left(v^{+}, v^{-}\right): v \in G \backslash F\right\}=\left\{f_{1}, f_{2}, \ldots\right\}$ , where  $\left(f_{i}^{+}, f_{i}^{-}\right) \not \leq\left(f_{j}^{+}, f_{j}^{-}\right) $ for  $i<j$ . This sequence is finite by the classical Gordan-Dickson Lemma. Correctness of the algorithm follows immediately from the above Lemma , since upon termination $normalForm (v+w, G)=0 $ for all  $v, w \in G$ , giving a representation  $v+w=\sum \alpha_{i} g_{i}$  with  $\alpha_{i} \in \mathbb{Z}_{>0}, g_{i} \in G $, and  $g_{i} \sqsubseteq v+w.$  \hfill $\square$\\
+
+Let  $A=\left(A_{1} \mid A_{2}\right)$ , where the columns of  $A_{1}$  and  $A_{2}$  correspond to the integer and continuous variables, respectively. Throughout this section,  $A_{1}$  and  $A_{2}$  are assumed to be integer matrices of sizes  $l \times d_{1}$  and $ l \times d_{2}$ . Analogously, we subdivide  $c=\left(c_{1}, c_{2}\right)$ , where $ c_{1} \in \mathbb{R}^{d_{1}}$  and  $c_{2} \in \mathbb{R}^{d_{2}}$. Let  $z \in \mathbb{Z}^{d_{1}}$  and  $q \in \mathbb{R}^{d_{2}}$  denote the integer and continuous variables, respectively, and let  $d=d_{1}+d_{2}$ . Our aim is to construct a universal test set for the family of optimization problems $ (\mathrm{P})_{c, b}$  as $c \in \mathbb{R}^{d}$  and  $b \in \mathbb{R}^{l}$  vary.
+
+Again, a Graver test set in the mixed-integer situation is defined to be \textbf{an inclusion minimal subset of  $\operatorname{ker}_{\mathbb{X}}(A)$  which has the positive sum property with respect to $ \operatorname{ker}_{\mathbb{X}}(A)$}. This leads us to the following set of vectors.
+
+\begin{definition}The MIP Graver test set  $\mathcal{G}_{\mathrm{MIP}}(A)$  contains all vectors \\
+ \indent 1. $(0, q), q \in \mathcal{G}_{\mathrm{LP}}\left(A_{2}\right)$  \\
+ \indent 2. $(z, q) \in \operatorname{ker}_{\mathbb{X}}(A), z \neq 0 $, and such that there is no  $\left(z^{\prime}, q^{\prime}\right) \in \operatorname{ker}_{\mathbb{X}}(A)$  satisfying  $\left(z^{\prime}, q^{\prime}\right) \sqsubseteq(z, q) $.\end{definition}
+
+The set $\mathcal{G}_{\mathrm{MIP}}(A)$, however, is not necessarily finite. 
+
+Having only an infinite test set available, we cannot yet make algorithmic use of the Augmentation Algorithm 1 to improve a feasible initial solution to optimality. However, we will construct a finite set  $\mathcal{G}_{\mathbb{Z}}(A) \subseteq \mathbb{Z}^{d_{1}}$  from which an improving vector to a nonoptimal solution of the given problem can be reconstructed in finitely many steps. Thus, the Augmentation Algorithm 1 can be employed again to find an optimal solution.
+
+Consider the projection  $\phi: \mathbb{Z}^{d_{1}} \times \mathbb{R}^{d_{2}} \rightarrow \mathbb{Z}^{d_{1}}$  which maps each mixed-integer vector onto its  $d_{1}$  integer components. Define  $\mathcal{G}_{\mathbb{Z}}(A)=\mathcal{G}_{\mathbb{Z}}\left(A_{1} \mid A_{2}\right):=\phi\left(\mathcal{G}_{\mathrm{MIP}}(A)\right)$  to be the set of images of the elements in  $\mathcal{G}_{\mathrm{MIP}}(A)$ .
+
+\begin{lemma} $\mathcal{G}_{\mathbb{Z}}\left(A_{1} \mid A_{2}\right)$  is finite for every matrix  $A \in \mathbb{Z}^{l \times d}$  and for any subdivision  $A=\left(A_{1} \mid A_{2}\right) $.\end{lemma}
+
+\noindent\textbf{Proof.} Each element  (z, q) $\in \mathcal{G}_{\mathrm{MIP}}(A)$  satisfies  $\|z\|_{1} \leq \Delta\left(A_{1}, A_{2}\right) $ for some scalar  $\Delta\left(A_{1}, A_{2}\right)$  which depends only on  $A_{1}$  and  $A_{2}$. This inequality can be true only for finitely many vectors  $z \in \mathbb{Z}^{d_{1}}$ . \hfill$\square$
+
+
+
+\newpage 
+\subsection{Maple Codes}
+\subsubsection{Graver Basis}
+\begin{verbatim}
+GrBasis:=proc(A)  
+local n,r,X,Y,L,A1,Id,Alaw,Xlist,Gtor,k,H,vp,vm,K,p,i,pos,neg,v,G;  
+uses LinearAlgebra, Groebner;
+
+n := ColumnDimension(A);
+r := RowDimension(A);
+X := Vector(n, symbol = x);
+Y := Vector(n, symbol = y);
+L := [];
+
+A1 := <A | ZeroMatrix(r, n)>;
+Id := <IdentityMatrix(n, n) | IdentityMatrix(n, n)>;
+Alaw := <A1, Id>;
+Xlist := [op(convert(Transpose(X), list)), op(convert(Transpose(Y), list))];
+Gtor := ToricIdealBasis(Alaw, Xlist, tdeg(op(Xlist)));
+
+for k to n do          
+	H:=subs(y[k]=1,Gtor);          
+	Gtor:=H;  
+end do;    
+
+vp:=Vector(n);  
+vm:=Vector(n);  K:=[];    
+for p in Gtor do         
+	if sign(op(1, p)) = 1 then 
+    	pos := op(1, p); 
+        neg := -op(2, p); 
+    end if;
+	if sign(op(1, p)) = -1 then
+    	pos := -op(1, p);
+    	neg := op(2, p);
+	end if;         
+    for i to n do                  
+    	vp[i]:=degree(pos,x[i]);                  
+        vm[i]:=degree(neg,x[i]);          
+     end do;         
+     v:=convert(vp-vm,list):          
+     K:=[op(K),v];  
+ end do;  
+ G:=convert(K,Matrix);  
+ print(G);   
+ end proc;
+\end{verbatim}
+
+\subsubsection{Matrix of SIP}
+\begin{verbatim}
+SIP := proc(A, T, W, n) 
+local a, b, c, d, k, A1, A2, A3; 
+uses LinearAlgebra, Groebner ;
+a := ColumnDimension(A); 
+b := RowDimension(A); 
+c := ColumnDimension(W); 
+d := RowDimension(W); 
+A1 := <A | ZeroMatrix(b, c*n)>; 
+for k to n do 
+	A2 := <T| LinearAlgebra:-ZeroMatrix(d, c*(k - 1))|W|ZeroMatrix(d, c*(n - k))>; 
+    A1 := <A1, A2>; 
+end do; 
+print(A1); 
+end proc
+\end{verbatim}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+\newpage
+
+\newcommand{\doi}[1]{doi: \href{https://doi.org/#1}{#1}}
+\begin{thebibliography}{99}  
+\bibitem{ref1}Hemmecke, Raymond. “On the Positive Sum Property and the Computation of Graver Test Sets.” Mathematical Programming, vol. 96, no. 2, 2003, pp. 247–269., \doi{https://doi.org/10.1007/s10107-003-0385-7}. 
+\bibitem{ref2}Cox D., et al. "Using Algebraic Geometry".
+\bibitem{ref3}Cox D., J. Little, et al. "Ideals Varieties and Algorithms."
+\bibitem{ref4}Hemmecke, R., and R. Schultz. “Decomposition of Test Sets in Stochastic Integer Programming.” Mathematical Programming, vol. 94, no. 2-3, 2003, pp. 323–341., \doi{https://doi.org/10.1007/s10107-002-0322-1}.
+\bibitem{ref5}Schultz, Rüdiger, et al. “Solving Stochastic Programs with Integer Recourse by Enumeration: A Framework Using Gröbner Basis.” Mathematical Programming, vol. 83, no. 1-3, 1998, pp. 229–252., \doi{https://doi.org/10.1007/bf02680560}.
+\bibitem{ref6}Biase, Fausto Di, and Rüdiger Urbanke. “An Algorithm to Calculate the Kernel of Certain Polynomial Ring Homomorphisms.” Experimental Mathematics, vol. 4, no. 3, 1995, pp. 227–234., \doi{https://doi.org/10.1080/10586458.1995.10504323}.
+\bibitem{ref7}Herzog, Juergen. “Generators and Relations of Abelian Semigroups and Semigroup Rings.” Manuscripta Mathematica, vol. 3, no. 2, 1970, pp. 175–193., \doi{https://doi.org/10.1007/bf01273309}. 
+\bibitem{ref8}Graver, J.E., et al. "On the foundation of linear and integer programming I." Mathematical Programming 9, 1975, pp. 207–226.
+\bibitem{ref9}A., De Loera Jesús, et al. Algebraic and Geometric Ideas in the Theory of Discrete Optimization. Society for Industrial and Applied Mathematics, 2013. 
+\bibitem{ref10}Hoekstra, M. “Grobner Bases and Graver Bases Used in Integer Programming.” Student Theses Faculty of Science and Engineering, Faculty of Science and Engineering, 1 Jan. 1970, \href{https://fse.studenttheses.ub.rug.nl/11323/}{https://fse.studenttheses.ub.rug.nl/11323/}. 
+\end{thebibliography}
+
+\end{document}
+
+
+
