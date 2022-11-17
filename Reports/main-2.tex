@@ -6,12 +6,14 @@
 \usepackage{xy}
 \usepackage{geometry}
 \usepackage{hyperref}
+\usepackage{booktabs}
 
 \usepackage[table]{xcolor}
 \setlength{\arrayrulewidth}{0.01mm}
 \setlength{\tabcolsep}{18pt}
 \renewcommand{\arraystretch}{1.5}
-
+\usepackage{graphicx}
+\graphicspath{ {./images/} }
 \theoremstyle{plain}
 \newtheorem{theorem}{Theorem}[section]
 \newtheorem{lemma}[theorem]{Lemma}
@@ -325,26 +327,46 @@ where \begin{align*}
 \end{align*}
 where $x = (x_1,x_2)^{T}$ , $y^{\nu} =(y_{1}^{\nu},y_{2}^{\nu},y_{3}^{\nu},y_{4}^{\nu})^{T}$,  $u^{\nu} =(u_{1}^{\nu},u_{2}^{\nu},u_{3}^{\nu},u_{4}^{\nu})^{T}$, $\xi^{\nu} =(\xi_{1}^{\nu},\xi_{2}^{\nu},\xi_{3}^{\nu},\xi_{4}^{\nu})^{T}$ .
 
-\subsection{Algorithm 4.3}
-By importing the 'time' package in Python,  we test the time of the program. 
+\subsection{Comparison between computational costs of Algorithm 3.1, 4.3 and MINLP solver}
+By importing the $\texttt{time}$ package in Python,  we can therefore test the running time of the program, which are given in CPU seconds on Apple Silicon M1 chip. Also, we introduce the modern MINLP solver, specially designed for MIP problems, in package $\texttt{gekko}$ implemented by Python. We shall compare the computational costs of Algorithm 3.1, 4.3 and MINLP solver as suggested by the caption.
 
-First, it took 131.44028520584106 seconds to compute the Graver Basis of $A$, which is a required ingredient for the programs corresponding to all scenarios. 
+Then we give the realization of $\left(\xi_{1}^{\nu}, \xi_{2}^{\nu}, \xi_{3}^{\nu}, \xi_{4}^{\nu}\right)$   by uniform grids (of differing granularity) in the squares $ [300,1300] \times [300,1300]\times [200,12000] \times[200,12000]$ every three integers. We shall compute the computational time when the number of scenarios equals to $N=1,20,40,60,80	,100,120,140,160,180,200.$ We gather the numerical results in the table below. We shall name Algorithm 3.1, 4.3 separately by Kernel Method and Graver Method.
 
-Then we give the realization of $\left(\xi_{1}^{\nu}, \xi_{2}^{\nu}, \xi_{3}^{\nu}, \xi_{4}^{\nu}\right)$   by uniform grids (of differing granularity) in the squares $ [300,1300] \times [300,1300]\times [200,12000] \times[200,12000]$ every three integers. For computing all 333 scenarios' optimum, i.e. to compute the opportunity-cost matrix, the time for the whole programs is  55.01750707626343 seconds.
+\begin{table}[htbp]
+\centering
+\caption{Comparison between different solvers ( Timing units: second )}
+\begin{tabular}{|c|c|c|c|}
+\hline
+num  & Kernel Method & Graver Method & MINLP solver \\
+\hline
+1 & 0.20098  & 11.33629  & 131.06186   \\
+20 & 1.21699  & 219.18796 & 131.66931   \\
+40 & 2.33655  & 439.71981 & 132.02384   \\
+60 & 3.53545  & 643.3165  & 132.35069   \\
+80 & 4.68832  & ...       & 132.72208  \\
+100 & 5.93403  & ...       & 133.14721   \\
+120 & 7.24906  & ...       & 133.61075  \\
+140 & 8.56163  & ...       & 134.06991  \\
+160 & 10.08377 & ...       & 134.61703   \\
+180 & 11.25169 & ...       & 135.21214  \\
+200 & 12.88583 & ...       & 135.8798  \\
+ \hline
+\end{tabular}
+\end{table}
 
-\subsection{Algorithm 3.1}
-First, it took 0.04420804977416992 seconds  to compute the generating set of the toric ideal of $A$, which can be  a required ingredient for the Gröbner Basis corresponding to all scenarios. 
+It's worthy of notification that it took 0.12265 seconds  to compute the generating set of the toric ideal of $A$, which is  required for all scenarios' Gröbner Basis computation. Meanwhile, it took 130.99244 seconds to compute the Graver Basis of $A$, which is also required for all subsequent programs corresponding to all scenarios. Also, as is shown below, we visualize the table in the form of a line chart.
 
-Then we give the realization of $\left(\xi_{1}^{\nu}, \xi_{2}^{\nu}, \xi_{3}^{\nu}, \xi_{4}^{\nu}\right)$   by uniform grids (of differing granularity) in the squares $ [300,1300] \times [300,1300]\times [200,12000] \times[200,12000]$ every three integers. For computing all 333 scenarios' optimal points, i.e. to compute the opportunity-cost matrix, we apply the bunchberger algorithm first to calculate the Gröbner Basis of each scenario and then find the optimum each.  The time for the whole programs is  9.76793909072876 seconds.
+\begin{figure}[h]
+\centering
+\includegraphics[scale=0.3]{LineChart}
+\caption{Trends of Computational Cost}
+\end{figure}
 
-\subsection{Remark}
-Algorithm 4.3 has the advantage that it calculate the Graver Basis once and for all. However, computational cost might boost quickly when the matrix $A$ is not of small size. The new algorithm 3.1 fixes this by only computing the generating set of the generating set of the toric ideal of $A$, which can be very helpful to calculate the Gröbner Basis corresponding to all scenarios. After calculating the generating set, we can get Gröbner Basis of each scenario without any efforts. So the time of computing the opportunity-cost matrix is greatly reduced.
+From the line chart, we can see that although it took almost 130s  for initialization of Algorithm 4.3, the curve rises slowly thereafter. The computational cost with MINLP solver grows stably and starts to overpower that of Algorithm 4.3 when $N=20$. Generally, the curve of Algorithm 3.1 shows performance of great superiority when compared with other two algorithms.
 
-Algorithm 4.4 is an algorithm to calculate the Graver Basis of the whole program in special cases where $\operatorname{Ker}_{\mathbb{R}}(A)=\{0\}$. It might be costly for the same reason as algorithm 4.3. However, still it greatly reduces the computation.
+Algorithm 4.3 has the advantage that it calculate the Graver Basis once and for all. However, computational cost might boost dramatically when the matrix $A$ is not of small size. The proposed algorithm 3.1 fixes this by only computing the generating set of the toric ideal of $A$, which can be  helpful to the calculation of the Gröbner Basis corresponding to all scenarios. After calculating the generating set, we can get Gröbner Basis of each scenario without any efforts. So the time of computing the opportunity-cost matrix is greatly reduced.
 
-
-
-
+Algorithm 4.4 is an algorithm to calculate the Graver Basis of the whole program in special cases where $\operatorname{Ker}_{\mathbb{R}}(A)=\{0\}$. It might be costly for the same reason as algorithm 4.3. However, still it greatly reduces the computation in comparison to modern MIP solvers.
 
 
 \section{Further study}
@@ -672,6 +694,40 @@ def new_toric(A,c):
 
 \end{thebibliography}
 \end{document}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

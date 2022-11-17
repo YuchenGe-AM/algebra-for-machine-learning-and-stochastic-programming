@@ -1,0 +1,150 @@
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{xy}
+\usepackage{geometry}
+\usepackage{hyperref}
+
+\usepackage[table]{xcolor}
+\setlength{\arrayrulewidth}{0.01mm}
+\setlength{\tabcolsep}{18pt}
+\renewcommand{\arraystretch}{1.5}
+
+\theoremstyle{plain}
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{algorithm}[theorem]{Algorithm}
+
+\geometry{a4paper,scale=0.8} 
+\title{Algebra for Machine Learning and Stochastic Programming III}
+\author{Yuchen Ge}
+\date{September 2022}
+
+\begin{document}
+
+\maketitle
+\tableofcontents
+\newpage
+
+\begin{abstract}
+This article introduces some combinatorial facts about Gröbner Basis and Graver Basis for Stochastic Mixed Integer Programming.
+\end{abstract}
+\section{Combinatorial Methods with Gröbner and Graver Basis}
+
+\subsection{Some New Results}
+
+First we generalize a theorem presented earlier.
+
+We shall see the relationship between the Graver Basis (Universal Gröbner Basis) of the SIP 
+\begin{equation}
+\min \left\{c^{T} x+\sum_{i=1}^{N} p_{i} q_{i}^{T} y_{i}: A x= b, x  \in \mathbb{Z}_{+}^{m}, T x+W_{i} y_{i}=h_{i}, y_{i}  \in \mathbb{Z}_{+}^{n}, i=1, \ldots, N\right\}
+\end{equation}
+and that of the IP at scenario $i$
+\begin{equation}
+\min \left\{c^{T} x+ p_{i} q_{i}^{T} y_{}: A x = b, x  \in \mathbb{Z}_{+}^{m}, T x+W_{i} y_{}=h_{i}, y_{}  \in \mathbb{Z}_{+}^{n} \right\}
+\end{equation}
+Then we assert \\
+
+\begin{theorem} (new/true) Denote the  Graver Basis of  (6) by $\mathcal{GR}_{N}$, and the  Graver Basis of (7) at scenario $i$ by $\mathcal{GR}_{i}$, $i=1,2,...,N$. Then if $\operatorname{Ker}_{\mathbb{R}}(A)=\{0\}$, we have $$\mathcal{GR}_{N}=\{(0,0,...,v_i,...,0):(0,v_i)\in \mathcal{GR}_{i},i=1,2,...,n\}$$\end{theorem}
+
+The proof is the same as the original case and is helpful when we have 1-stage variable fixed.
+
+Given an integer matrix $A$, we can give an inequality to bound the graver basis without explicitly computing the basis.
+
+\begin{proposition} (Graver basis bounds). Given  $A \in \mathbb{Z}^{m x n}$  and  $\Delta$  an upper bound for the absolute value of each component of  A , for every  $g \in \mathcal{G}(A) $ :\\
+\indent -  $\|g\|_{1} \leq m^{m / 2} \Delta^{m} \cdot(n-m) \quad$ \cite{ref1}\\
+\indent -  $\|g\|_{1} \leq (2 m \Delta+1)^{m}$ \cite{ref2} \\
+\end{proposition}
+
+With the bound of Graver Basis, denoted by $\|\mathcal{GR}(A)\|$, we have
+
+\begin{algorithm} (General IP algorithm using Graver basis norm bound)\\
+$ \underline{\text {Step 1: }}$ From a feasible solution  $z_{i} $\\
+$ \underline{\text {Step 2: }}$ Find  $g^{*}$  optimum for the augmentation step problem:  $\max \left\{c^{t} g: A g=0, g \in \mathbb{Z}^{n},\|g\|_{1} \leq\|\mathcal{G}(A)\|\right\} $\\
+\indent -  $g^{*}=0 \Longrightarrow z_{i}$  optimal solution. \\
+\indent -  $g^{*} \neq 0 \Longrightarrow g^{*}$  improvement direction, loop back to 1 with:  $z_{i+1}=z_{i}+\lambda \cdot g^{*}$  with the biggest  $\lambda$  respecting the bounds. \\
+\end{algorithm}
+
+The main advantage of this algorithm is that it doesn't require the explicit computation of the Graver basis. However, the complexity is totally dependent on the added restriction  $\|g\|_{1} \leq\|\mathcal{GR}(A)\|$  and, as we saw in the proposition  3.2 , the only bounds we have for the general case are exponential. This means that for the general IP the lower and upper bounds are much more restrictive than the Graver basis bound and therefore we have to explore the whole feasible region.
+
+In certain cases we can get a much tighter bound for the Graver basis elements and this can help us to get a faster algorithm. The  matrix of  the stochastic integer programming is an iconic example. Consider the matrix
+$$
+A_N:=\left(\begin{array}{ccccc}
+A & 0 & 0 & \cdots & 0 \\
+T & W & 0 & \cdots & 0 \\
+T & 0 & W & \cdots & 0 \\
+\vdots & \vdots & \vdots & \ddots & \vdots \\
+T & 0 & 0 & \cdots & W
+\end{array}\right)
+$$
+We have the following result.
+
+\begin{proposition}
+for any $N$, $\|\mathcal{GR}(A_{N})\| = \|\mathcal{GR}(A_{2})\|\leq  (2 m \Delta+1)^{m} $  where $A_2 \in \mathbb{Z}^{m x n}$  and  $\Delta$  an upper bound for the absolute value of each component of  $A_2$.
+\end{proposition}
+
+\textbf{Proof.} A direct result of $\mathcal{H}_{\infty}=\mathcal{H}_{2}$. \hfill $\square$\\
+
+However, we can not generalize the result to the case when $W$ is variant since  adding up different $W_i$ can make the set of feasible first-stage variables much smaller.
+
+For example, let $T = \begin{pmatrix} 1 & 0 \\ 0 & 1\end{pmatrix}$ , $-W_i = $ rotation matrix matrix by angle $\theta_i$. By choosing different angle $\theta_i$, we can always make the set of feasible first-stage variables a narrow region. Needless to say its lattice.
+
+\subsection{Improvement in Augmentation Algorithm}
+
+Next we will search for improvements in Augmentation Algorithm.
+
+Given an instance defined by an integer matrix  A , by integer right-hand side and upper bound vectors  b  and  u , and by the feasible region  $\mathscr{F}:=\{x \in   \left.\mathbb{Z}^{d}: A x=b, 0 \leq x \leq u\right\}$, we want to solve the following integer programming problem.
+
+\begin{definition}
+Optimization (OPT):  Given a vector  $w \in \mathbb{Z}^{d}$  and a point  $x^{0} \in \mathscr{F}$ , find a point  $x^{*} \in \mathscr{F}$  that maximizes  $w x$  on  $\mathscr{F}$ .
+\end{definition}
+
+Notice that we always assume to know an initial feasible point $ x^{0} \in \mathscr{F}$ . Of course, finding such a point is NP-hard in general, yet easy for many problems. The only information we are given besides  u, w , and $ x^{0}$  is an oracle that we can call to solve a directed augmentation problem.
+
+\begin{definition}
+Directed Augmentation  $\left(\mathrm{AUG}_{\pm}\right) $: Given  $w^{\prime}, w^{\prime \prime} \in \mathbb{Q}^{d}$  and  $x \in \mathscr{F}$ , find  $z^{+}, z^{-} \in 
+ \mathbb{Z}^{d}$  such that $w^{\prime} z^{+}+w^{\prime \prime} z^{-}>0$, $ 0 \leq z^{+} \leq u-x$,
+$A\left(z^{+}-z^{-}\right)=0$, $ 0 \leq z^{-} \leq x$, or assert that no such vectors exists.
+\end{definition}
+
+\begin{definition}
+Maximum-Ratio Augmentation (MRA): Given  $w \in \mathbb{Z}^{d}$  and  $x \in \mathscr{F}$ , find a feasible direction  $z=z^{+}-z^{-} \in \mathbb{Z}^{d}$  such that  $w z>0$  and  z  maximizes $\frac{w z}{p(x) z^{+}+n(x) z^{-}}$, or assert that no such  z  exists.
+\end{definition}
+
+\begin{algorithm} ( Maximum-ratio augmentation ) \\
+\noindent $ \underline{\text {Step 1: }}$ Let  x  be a feasible solution. \\
+\noindent $ \underline{\text {Step 2: }}$ Call the (MRA) oracle with input  x  and  w . \\
+\noindent $ \underline{\text {Step 3: }}$ IF the oracle outputs "there is no feasible augmenting direction," \\
+\noindent $ \underline{\text {Step 4: }}$ THEN STOP. The current  x  is optimal. \\
+\noindent $ \underline{\text {Step 5: }}$ELSE let  z  be a feasible augmenting direction that maximizes  $w z /\left(p(x) z^{+}+n(x) z^{-}\right)$ and which is exhaustive. Set  $x:=x+z$ . GO TO (2). \\
+\end{algorithm}
+
+The following theorem justifies the algorithm. ( Theorem 2.2 in \cite{ref3} )
+
+\begin{theorem}
+Let  $\mathscr{F}$  be given by a feasible point  $x^{0} \in \mathscr{F}$ , by the upper bound vector  u , and by an oracle to solve the maximum-ratio augmentation problem (MRA). Then, for any  $w \in \mathbb{Z}^{d}$ , Algorithm I solves the corresponding optimization problem (OPT) with  $O(d \log (d W U))$  calls to the  $(\mathrm{MRA})$  oracle.
+\end{theorem}
+
+
+
+
+
+\newpage
+
+\newcommand{\doi}[1]{doi: \href{https://doi.org/#1}{#1}}
+\begin{thebibliography}{99}  
+
+\bibitem{ref1} Shmuel Onn. Nonlinear discrete optimization. 2010.
+
+\bibitem{ref2} Friedrich Eisenbrand, Christoph Hunkenschröder, and Kim-Manuel Klein. Faster algorithms for integer programs with block structure. 2018.
+
+\bibitem{ref3}Schulz, Andreas S., and Robert Weismantel. “The Complexity of Generic Primal Algorithms for Solving General Integer Programs.” Mathematics of Operations Research, vol. 27, no. 4, 2002, pp. 681–692., \doi{https://doi.org/10.1287/moor.27.4.681.305}. 
+\end{thebibliography}
+\end{document}
+
