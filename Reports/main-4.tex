@@ -1,0 +1,678 @@
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{xy}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage[table]{xcolor}
+\setlength{\arrayrulewidth}{0.01mm}
+\setlength{\tabcolsep}{18pt}
+\renewcommand{\arraystretch}{1.5}
+\theoremstyle{plain}
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{algorithm}[theorem]{Algorithm}
+\geometry{a4paper,scale=0.8} 
+\title{Algebra for Machine Learning and Stochastic Programming IV}
+\author{Yuchen Ge}
+\date{September 2022}
+
+
+
+
+\begin{document}
+\maketitle
+\tableofcontents
+\newpage
+
+\begin{abstract}
+This article introduces some combinatorial methods combined with Gröbner Basis and Graver Basis for Stochastic Integer Programming.
+\end{abstract}
+\section{Introduction}
+Traditionally machine learning and optimization are two different branches in computer science. They need to accomplish two different types of tasks, and they are studied by two different sets of domain experts. Machine learning is the task of extracting a model from the data, while optimization is to find the optimal solutions from the learned model. In the current era of big data and AI, however, such separation may hurt the end-to-end performance from data to optimization in unexpected ways. The paradigm of data-driven optimization is to tightly integrate data sampling, machine learning, and optimization tasks. There are generally two approaches in this paradigm, one is optimization from structured samples, which carefully utilizes the structural information from the sample data to adjust the learning and optimization algorithms; the other is combinatorial online learning, which adds feedback loop from the optimization result to data sampling and learning to improve the sample efficiency and optimization efficacy. Stochastic Integer Programming is a typical example of data-driven optimization. I will describe a new efficient algorithm for purely combinatorial Stochastic Integer Programming.
+
+\subsection{Stochastic Integer Programming}
+Benders decomposition has enabled considerable progress in stochastic programming with continuous recourse \cite{Benders 1962} by iterating between a “master problem” and continuous “sub-problems”. However, this approach is not designed to accommodate stochastic integer programs, which generally have non-convex and non-continuous recourse functions \cite{Schultz 1993}. \cite{Louveaux and Schultz (2003)} and \cite{Sen (2005)} provide comprehensive surveys on stochastic integer programming. Several decomposition approaches have been proposed, based on enumeration (\cite{Schultz et al. 1998}), branch and bound (\cite{Ahmed et al. 2004}), branch and cut (\cite{Sen and Sherali 2006}), Gomory cuts (\cite{Zhang and Kucukyavuz 2014}), split cuts (\cite{Sen and Higle 2005}), sample average approximation (\cite{Kleywegt et al. 2001}), disjunctive programming (\cite{Ntaimo 2010}) and dynamic programming (\cite{Zou et al. 2017}). The ideas of Benders decomposition have been extended to integer recourse functions using Lagrangian relaxation and branch-and-bound algorithms, but the resulting master problem is non-convex (\cite{Caroe and Schultz 1997}). One of the most widely applied solution approaches is the integer L-shaped method from \cite{Laporte and Louveaux (1993)}. This method generates optimality and feasibility cuts iteratively to the master problem by leveraging the optimal value of the second-stage objective function for any first-stage integer solution. This method was extended with non-linear and Gomory cuts (\cite{Caroe and Schultz 1999}), with specialized branching (\cite{Ahmed et al. 2004}), with thin-direction branching and multi-cut heuristics (\cite{Kim and Mehrotra 2015}), and with alternating cuts and a cut-generating optimization model (\cite{Angulo et al. 2016}).
+
+These developments have enabled applications of stochastic integer programming to vehicle routing (\cite{Laporte et al. 2002}), capacity expansion (\cite{Ahmed and Sahinidis 2003}), inventory management (\cite{Gunpinar and Centeno 2015}), nurse staffing and scheduling (\cite{Kim and Mehrotra 2015}), etc. At the same time, the integer L-shaped method is most effective when the first-stage problem has a limited solution space. Many problems, however, admits an exponentially large first-stage solution space—so that the integer L-shaped algorithm did not converge even in small instances.
+
+These challenges motivate new solution algorithms for stochastic integer programming. \cite{Wang and  Jacquillat 2020} proposes a novel decomposition approach that leverages the dual linear programming relaxation of the second-stage integer problem and its reduced costs. As such, their approach shares similarities with the additive bounding procedure from \cite{Fischetti and Toth 1989}, which uses dual information from a model relaxation to derive a lower bound for NP-hard combinatorial optimization problems—with applications to the traveling salesman and vehicle routing problems (\cite{Fischetti and Toth 1992},\cite{ Baldacci et al. 2008}, \cite{Baldacci and Mingozzi 2009}).
+\subsection{Scenario Reduction}
+A challenge in stochastic programming involves defining uncertainty scenarios and their probabilities. Most applications rely on distributional assumptions regarding the uncertain parameters to sample scenarios. Scenario reduction methods have been proposed when the number of scenarios is too large to ensure computational tractability (\cite{Dupacova et al. 2003}, \cite{Romisch 2009}). These methods start with a “true” probability distribution, and generate another probability distribution of prescribed cardinality that approximates it best. The scenario reduction problem is typically solved using heuristic algorithms. It has been applied, for instance, to the unit commitment and capacity expansion problems in energy planning (\cite{Carrion et al. 2007}, \cite{Morales et al. 2009}). 
+\subsection{Problem Statement} 
+Instead of SIP (A universally acknowledged definition is unavailable), we give the definition of  Stochastic Mixed Integer Program. 
+A Stochastic Mixed Integer Program (SMIP) is to solve 
+
+\begin{equation}
+\begin{array}{l}
+\min c^{T} x+\mathbb{E}[Q(x, \xi)] \\
+\text { s.t. } A x \geq b \\
+\quad x \in \mathbb{R}_{+}^{n_{1}} \times \mathbb{Z}_{+}^{p_{1}}
+\end{array}
+\end{equation}
+where  $\xi=(q, h, T, W)$  and
+$$
+\begin{aligned}
+Q(x, \xi)=\min &  q^{T} y \\
+\text { s.t. } & W y=h-T x \\
+& y \in \mathbb{R}_{+}^{n_{2}} \times \mathbb{Z}_{+}^{p_{2}} 
+\end{aligned}
+$$
+where x denotes the first-stage decision variables and  y  denotes the second-stage decision variables and sometimes we assume  $n_{1}, p_{1}, n_{2}$ , or  $p_{2}$  are zero, which depends.
+
+We assume the random data  $\xi$  is represented by a finite set of scenarios: $\left(q^{i}, h^{i}, T^{i}, W^{i}\right), i=1, \ldots, N$, where scenario  $i$  occurs with probability  $p_{i}$. So we have the following extensive form (deterministic equivalent) of an SMIP. 
+
+\begin{definition} 
+Deterministic equivalent of an SMIP is 
+\begin{equation}
+\begin{array}{ll}
+\min & c^{T} x+\sum_{i=1}^{N} p_{i} q_{i}^{T} y_{i} \\
+\text { s.t. } & A x \geq b \\
+& T_{i} x+W_{i} y_{i}=h_{i} \\
+& x \in \mathbb{R}_{+}^{n_{1}} \times \mathbb{Z}_{+}^{p_{1}} \\
+& y_{i} \in \mathbb{R}_{+}^{n_{2}} \times \mathbb{Z}_{+}^{p_{2}}, \quad i=1, \ldots, N
+\end{array}
+\end{equation}
+\end{definition}
+
+When $n_1=0$ and $n_2=0$ (i.e. purely integral/combinatorial),  we have a method \cite{Hemmecke and Schultz 2003} to deal with it. And we have another method \cite{Schultz et al. 1998} to deal with a Stochastic Program with Complete Integer Recourse, which is a SMIP when $p_1=n_2=0$ (i.e. first-stage continuous and second-stage combinatorial). The above two existing methods require the matrix $T_i, W_i$ to be invariant. However, in the proposal I will introduce a new algorithm for the case only when  $n_1=0$ and $n_2=0$.
+\subsection{Stochastic Facility Location Problem}
+The stochastic model has many applications. For example, we present the Stochastic facility location: a firm is deciding which facilities to open to serve customers with random
+demands. Goal is to minimize total (expected) cost.
+
+Notation:\\
+\noindent - $I$: Set of possible facilities to open \\
+\noindent - $J$: Set of customers \\
+\noindent - $f_{i}$:  Fixed cost for opening facility  i  \\
+\noindent -  $C_{i}$:  Capacity of facility  i  \\
+\noindent -  $c_{i j}$  : Unit cost for serving customer  j  demand at facility  i  \\
+\noindent -  $q_{j}$  : Penalty per unit of unmet demand of customer  j  \\
+\noindent -  $p_{s}$ : Probability of scenario  s, $s=1, \ldots, S$  \\
+\noindent -  $d_{j}^{s} $: Demand of customer demand  j  in scenario  s  \\
+
+Assume first-stage integer variables:  $x_{i}=1$  if facility  i  is open, 0 otherwise. Then we have the following SMIP:
+
+\begin{equation}
+\begin{array}{l}
+\min _{x} \sum_{i \in I} f_{i} x_{i}+\sum_{s \in S} p_{s} Q_{s}(x) \\
+\text { s.t. } x_{i} \in\{0,1\}, \quad i \in I
+\end{array}
+\end{equation}
+where
+\begin{equation}
+\begin{aligned}
+Q_{s}(x)=\min _{x, y} & \sum_{i \in I} \sum_{j \in J} c_{i j} y_{i j}+\sum_{j \in J} q_{j} z_{j} \\
+\text { s.t. } & \sum_{i \in I} y_{i j}+z_{j} \geq d_{j}^{s}, \quad j \in J \\
+& \sum_{j \in J} y_{i j} \leq C_{i} x_{i}, \quad i \in I \\
+& y_{i j} \geq 0, z_{j} \geq 0, \quad i \in I, j \in J
+\end{aligned}
+\end{equation}
+
+\section{Preliminary on Integer Programming}
+\subsection{Branch and Bound}
+First we fix some terminologies. Sub-problems (nodes) form a \textbf{search tree}. Eliminating a problem from further consideration is called \textbf{pruning}. The act of bounding and then branching is called \textbf{processing}. A sub-problem that has not yet been processed is called a \textbf{candidate}. The set of candidates is the \textbf{candidate list}. Then we have:
+
+\begin{algorithm}(Branch and Bound Algorithm) \\
+$ \underline{\text {Step 1: }}$ Derive an bound  U  using a heuristic method (if possible). \\
+$ \underline{\text {Step 2: }}$ Put the original problem on the candidate list.\\
+$ \underline{\text {Step 3: }}$ Select a problem  S  from the candidate list and solve the relaxation to obtain the bound $\ell(S) $ \\
+\indent - Relaxation infeasible  $\Rightarrow$  node can be pruned. \\
+\indent -  $\ell(S)<U$  and the solution is feasible for the MIP  $\Rightarrow$  set  $U \leftarrow \ell(S) $.\\
+\indent -  $\ell(S) \geq U \Rightarrow$  node can be pruned. \\
+\indent - Otherwise, branch. Add the new sub-problems to the list.\\
+$ \underline{\text {Step 4: }}$If the candidate list in nonempty, go to Step 3. Otherwise, the algorithm is completed.
+\end{algorithm}
+
+By adding  Redundant constraints as below,
+$$y_{i j} \leq \min \left\{d_{j}^{s}, C_{i}\right\} x_{i}, \quad \forall i \in I, j \in J$$
+
+\begin{equation}
+\begin{array}{l}
+\min _{x} \sum_{i \in I} f_{i} x_{i}+\sum_{s \in S} p_{s} Q_{s}(x) \\
+\text { s.t. } x_{i} \in\{0,1\}, \quad i \in I
+\end{array}
+\end{equation}
+where
+\begin{equation}
+\begin{aligned}
+Q_{s}(x)=\min _{x, y} & \sum_{i \in I} \sum_{j \in J} c_{i j} y_{i j}+\sum_{j \in J} q_{j} z_{j} \\
+\text { s.t. } & \sum_{i \in I} y_{i j}+z_{j} \geq d_{j}^{s}, \quad j \in J \\
+& \sum_{j \in J} y_{i j} \leq C_{i} x_{i}, \quad i \in I \\
+& y_{i j} \leq \min \left\{d_{j}^{s}, C_{i}\right\} x_{i}, \quad \forall i \in I, j \in J \\
+& y_{i j} \geq 0, z_{j} \geq 0, \quad i \in I, j \in J
+\end{aligned}
+\end{equation}
+
+We have that for $x_i$, the set of integer feasible points satisfying these are the same. But many fractional points that satisfy original formulation do not satisfy the redundant constraints. 
+
+Here are some comments. Using the formulation with better bound is almost always (much) better, since we can prune more often. But one may need to use specialized techniques to solve relaxation problems with more constraints.
+\subsection{Valid Inequalities}
+Let  $X=\left\{x \in \mathbb{R}_{+}^{n}: A x \leq b, x_{j} \in \mathbb{Z}, j \in J\right\}$ 
+\begin{definition}
+An inequality  $\pi x \leq \pi_{0}$  is a valid inequality for  $X$  if  $\pi x \leq \pi_{0}$  for all  $x \in X$ .  $\left(\pi \in \mathbb{R}^{n}, \pi_{0} \in \mathbb{R}\right) $
+\end{definition}
+
+Here, valid inequalities are also called "cutting planes" or "cuts".  The goal of adding valid inequalities to a formulation is to improve relaxation bound and explore fewer branch-and-bound nodes.
+
+How to use them in a branch-and-bound algorithm? We can either add them to the initial formulation, or add them only as needed to cut off fractional solutions.  When add them only as needed to cut off fractional solutions, we have two different situations. \\
+\indent (1) Cut-and-branch: Do this only with the initial LP relaxation (root node). \\
+\indent (2) Branch-and-cut: Do this at all nodes in the branch-and-bound tree. 
+
+Then we mainly focus on  Branch-and-cut method: at each node in branch-and-bound tree we add valid inequalities we need. \\
+
+\begin{algorithm}(Branch-and-cut)\\
+$ \underline{\text {Step 1: }}$ Solve current LP relaxation  $\Rightarrow \hat{x} $ \\
+$ \underline{\text {Step 2: }}$Attempt to generate valid inequalities that cut off  $\hat{x} $ \\
+$ \underline{\text {Step 3: }}$ If cuts found, add to LP relaxation and go to step 1 \\
+\end{algorithm}
+This approach is the \textbf{heart of all modern MIP solvers} because it reduces the number of nodes to explore with improved relaxation bounds and add inequalities required to define feasible region.
+\section{Branch and Cut Based Methods}
+Consider the SMIP where we introduce the variable 
+\begin{equation}
+\begin{array}{ll}
+\min & c^{T} x+\sum_{s=1}^{S} p_{s} \theta_{s} \\
+\text { s.t. } & A x \geq b \\
+& \quad \theta_{s} \geq Q_{s}(x), \quad s=1, \ldots, S \\
+& \quad x \in \mathbb{R}_{+}^{n_{1}} \times \mathbb{Z}_{+}^{p_{1}}
+\end{array}
+\end{equation}
+
+where for  $s=1, \ldots, S $
+
+\begin{equation}
+\begin{aligned}
+Q_{s}(x)=\min & q_{s}^{T} y \\
+\text { s.t. } & W_{s} y=h_{s}-T_{s} x \\
+& y \in \mathbb{R}_{+}^{n_{2}} \times \mathbb{Z}_{+}^{p_{2}}
+\end{aligned}
+\end{equation}
+Problem (1) can be reformulated as the following Benders model:
+$$\min _{x, \theta_{s}}\left\{c^{T} x+\sum_{s \in S} p_{s} \theta_{s}:\left(x, \theta_{s}\right) \in E^{s}, s \in S\right\},$$
+
+where for each  $s \in S, E^{s}$  contains the first-stage constraints and the epigraph of  $Q_{s}$ , i.e., 
+$$E^{s}=\left\{\left(x, \theta_{s}\right) \in X \times \mathbb{R}: A x \geq b, \theta_{s} \geq Q_{s}(x)\right\}.$$
+
+In a typical approach to solve (1), each recourse function  $Q_{s}$  is replaced by a cutting-plane underestimate  $\hat{Q}_{s}$  which creates a relaxation and is dynamically updated. In each iteration, an approximate problem defined by the current underestimate is solved to obtain a candidate solution and then a cut generation problem is solved to update the cutting plane approximation if necessary. This process is repeated until no cuts are identified.
+
+We review two types of valid inequalities for  $E^{s}$ . The first collection of cuts are Benders cuts. Benders cuts are generated based on the LP relaxation of the problem (2) defining  $Q_{s}(x)$. Given a candidate solution  $\hat{x}$ , the LP relaxation of the recourse problem is solved:
+\begin{equation}
+\min _{y}\left\{\left(q^{s}\right)^{T} y: W^{s} y \geq h^{s}-T^{s} \hat{x}\right\}.
+\end{equation}
+Let  $\mu$  be an optimal dual solution of problem (3). Based on LP duality, the following Benders cut is valid for  $E^{s}$  :
+\begin{equation}\mu^{T} T^{s} x+\theta_{s} \geq \mu^{T} h^{s} .
+\end{equation}
+If the SIP has continuous recourse, i.e.,  $p_2=0$ , then (4) is tight at  $\hat{x}$ , i.e.,  $Q_{s}(\hat{x})=-\mu^{T} T^{s} \hat{x}+\mu^{T} h^{s} $. The cutting-plane model  $\hat{Q}_{s}$  is often constructed by iteratively adding Benders cuts until the lower bound converges to the LP relaxation bound. Benders cuts are sufficient to provide convergence for solving SIPs with continuous recourse.
+
+Another useful family of cuts is the integer L-shaped cuts introduced in \cite{Laporte and Louveaux (1993)}. These cuts are valid only when the first-stage variables are binary, i.e.,  $X=\{0,1\}^{n}$ , but can be applied even when the second-stage includes integer decision variables. In this case, given  $\hat{x} \in\{0,1\}^{n}$  and a value  $L_{s}$  such that  $Q_{s}(x) \geq L_{s}$  for all feasible  x , the following integer L-shaped cut is a valid inequality for  $E^{s}$ :
+\begin{equation}
+\theta_{s} \geq Q_{s}(\hat{x})-\left(Q_{s}(\hat{x})-L_{s}\right)\left(\sum_{i: \hat{x}_{i}=1}\left(1-x_{i}\right)+\sum_{i: \hat{x}_{i}=0} x_{i}\right) .
+\end{equation}
+The branch-and-cut algorithm can be implemented using a lazy constraint callback in modern MIP solvers, which allows the addition of Benders or integer L-shaped cuts when the solver encounters a solution  $(\hat{\theta}, \hat{x})$  with $ \hat{x} \in X$  (i.e.,  $\hat{x}$  satisfies any integrality constraints) but for which  $\hat{\theta}_{s}<Q_{s}(\hat{x})$  for some  $s \in S$ . These two classes of cuts are sufficient to guarantee convergence for SIPs with continuous recourse or pure binary first-stage variables. However, the efficiency of the algorithm depends significantly on the strength of the cutting-plane models  $\hat{Q}_{s}$ 's. Given poor relaxations of the recourse functions, the branch-and-bound search may end up exploring a huge number of nodes, resulting in a long solution time. As discussed in Section 1 many methods have been proposed to strengthen the model  $\hat{Q}_{s}$  in order to accelerate the algorithm.
+
+We note that the validity of Lagrangian cuts does not require either continuous recourse or pure binary first-stage variables. However, outside of those settings, additional cuts or a specialized branching scheme would be required to obtain a convergent algorithm. I refer the readers to, e.g.,  \cite{Ahmed and Sahinidis 2003}, \cite{Zhang and Kucukyavuz 2014} for examples of methods that can be used to obtain a finitely convergent algorithm in other settings. Lagrangian cuts could potentially be added to enhance any of these approaches.
+
+\section{Preliminaries on Non-linear Optimization}
+In this section we summarize some basic facts about nonlinear programming problems written in the standard form
+\begin{equation}
+\begin{array}{l}
+\min f(x) \\
+\text { s.t. } g_{i}(x) \leq 0, \quad i=1, \cdots, m .
+\end{array}
+\end{equation}
+Throughout this section, we assume  that for  $f, g_{i}: \mathbb{R}^{n} \longrightarrow \mathbb{R}$ , at least one of them is not a linear function and all of them are continuously differentiable. This implies that any local minimum of program (1) is a global minimum.
+
+First of all, we have the two following well known facts.
+\begin{proposition}
+The function  $\varphi: \mathbb{R}^{n} \longrightarrow \mathbb{R}$  is convex iff for all arbitrarily chosen  $x, y \in \mathbb{R}^{n}$  we have
+$(y-x)^{\mathrm{T}} \nabla \varphi(x) \leq \varphi(y)-\varphi(x) $.
+\end{proposition}
+
+\begin{lemma} (Farkas’ lemma)\\
+$\{x \mid A x=b, x \geq 0\} \neq \emptyset$ if and only if  $A^{\mathrm{T}} u \geq 0$  implies that  $b^{\mathrm{T}} u \geq 0 $
+\end{lemma}
+
+Then we present some regularity conditions and corresponding propositions.
+\begin{proposition} Let  $ I(\hat{x}):=\left\{i \mid g_{i}(\hat{x})=0\right\}$ and $\mathcal{B}=\left\{x \mid g_{i}(x) \leq 0, i=1, \cdots, m\right\}$ be the feasible region of program (1). Here we present some regularity conditions.\\
+\indent  \underline{Kuhn–Tucker condition} : $\begin{array}{r}
+\exists \hat{u} \geq 0 \text { such that } \nabla f(\hat{x})+\sum_{i=1}^{m} \hat{u}_{i} \nabla g_{i}(\hat{x})=0, \\
+\sum_{i=1}^{m} \hat{u}_{i} g_{i}(\hat{x})=0 .
+\end{array}$ \\
+\indent  $\underline{\mathcal{R C}_{-} 0} : z^{\mathrm{T}} \nabla g_{i}(\hat{x}) \leq 0, i \in I(\hat{x}) \text { implies that } z^{\mathrm{T}} \nabla f(\hat{x}) \geq 0$. \\
+\indent  $ \underline{\mathcal{R C}_{-} 1}:  \forall z \neq 0 \text { s.t. } z^{\mathrm{T}} \nabla g_{i}(\hat{x}) \leq 0, i \in I(\hat{x}), \exists\left\{x^{k} \mid x^{k} \neq \hat{x}, k=1,2, \cdots\right\} \subset \mathcal{B}$ such that $\lim _{k \rightarrow \infty} x^{k}=\hat{x}, \quad \lim _{k \rightarrow \infty} \frac{x^{k}-\hat{x}}{\left\|x^{k}-\hat{x}\right\|}=\frac{z}{\|z\|} .$ \\
+\indent  $\underline{\mathcal{R} \mathcal{C}_{-} 2}: \exists \tilde{x} \in \mathcal{B}$  such that  $g_{i}(\tilde{x})<0, \forall i $. \\
+
+Then we have  some relevant properties\\
+\indent (1) $\underline{\mathcal{RC}_{-} 2} \implies \underline{\mathcal{RC}_{-} 1} \implies \underline{\mathcal{RC}_{-} 0} $ where the first implication requires the convex condition. \\
+\indent (2) If  $\hat{x}$  (locally) solves program (1) and satisfies  $\underline{\mathcal{R} \mathcal{C}_{-} 0}$  then the Kuhn-Tucker condition necessarily hold in  $\hat{x}$. \\
+\indent (3) If we assume the program is convex and $\underline{\mathcal{R} \mathcal{C}_{-} 2}$  holds, then  $\hat{x} \in \mathcal{B}$  (globally) solves problem (1) if and only if the Kuhn-Tucker condition is satisfied in $\hat{x}$ .
+\end{proposition}
+
+\noindent \textbf{Proof.}  (2) is a consequence of Farkas’ Lemma. Others are omitted. Interested readers may refer to \cite{Stochastic Programming}. 
+\hfill $\square$\\
+
+When solving stochastic programs, we somtimes need to use preliminary results from both linear and nonlinear programming, and their underlying ideas. Unlike linear programs, nonlinear programs generally cannot be solved in finitely many steps. Instead, we shall have to deal with iterative procedures that we might expect to converge, to some extent, to a solution of the nonlinear program under consideration. Traditional methods contain cutting-plane methods, methods of descent, penalty methods and Lagrangian methods. We will present one particular variant of the two methods.
+
+\subsection{Descent Method}
+The feasible direction and the reduced gradient methods have been extended to the case of nonlinear constraints. However, for the sake of simplicity, we consider the special case of minimizing a convex function under linear constraints. Assume that we have a feasible point  $z \in \mathcal{B}=\{x \mid A x=b, x \geq 0\}$ . Then there are two possibilities as we will discuss below.
+
+If  z  is optimal then the Kuhn-Tucker conditions have to hold. These are, with  $J(z):=\left\{j \mid z_{j}>0\right\}$, 
+$$
+\begin{aligned}
+A^{\mathrm{T}} u-w &=-\nabla f(z) \\
+w_{j} &=0 \text { for } j \in J(z), \\
+w & \geq 0
+\end{aligned}
+$$
+Applying Farkas' Lemma,  we have this system is feasible if and only if 
+$$[\nabla f(z)]^{\mathrm{T}} d \geq 0 \quad \forall d \in\left\{d \mid A d=0, d_{j} \geq 0 \text { for } j \notin J(z)\right\}.$$
+
+If the feasible point  z  is not optimal then the Kuhn-Tucker conditions cannot hold. Therefore, there exists a direction  d  such that  $A d=0, d_{j} \geq 0$ $\forall j: z_{j}=0$  and $ [\nabla f(z)]^{\mathrm{T}} d<0$ . A direction like this is called a feasible descent direction at  z , which has to satisfy the following two conditions: $ \exists \lambda_{0}>0$  such that  $z+\lambda d \in \mathcal{B}$ $\forall \lambda \in\left[0, \lambda_{0}\right]$  and  $[\nabla f(z)]^{\mathrm{T}} d<0$ . Hence, having at a feasible point  z  a feasible descent direction  d  (for which, by its definition,  $d \neq 0$  is obvious), it is possible to move from  $z$  in direction $ d$  with some positive step length without leaving  $\mathcal{B}$  and at the same time at least locally to decrease the objective's value. From these brief considerations, we may state the following.
+
+\begin{algorithm} (descent directions)\\
+$\underline{\operatorname{Step 1}:}$ Determine a feasible solution $ z^{(0)}$ , let  $k:=0$ .\\
+$\underline{\operatorname{Step 2}:}$ If there is no feasible descent direction at  $z^{(k)}$  then stop  $\left(z^{(k)}\right.$  is optimal). Otherwise, choose a feasible descent direction  $d^{(k)}$  at  $z^{(k)}$  and go to step 3.\\
+$\underline{\operatorname{Step 3}:}$ Solve the so-called line search problem $\min _{\lambda}\left\{f\left(z^{(k)}+\lambda d^{(k)}\right) \mid\left(z^{(k)}+\lambda d^{(k)}\right) \in \mathcal{B}\right\}$ and with its solution  $\lambda_{k}$  define  $z^{(k+1)}:=z^{(k)}+\lambda_{k} d^{(k)}$ . Let  $k:=k+1$  and return to step 2 .
+\end{algorithm}
+
+We have two famous algorithms for determining $d^{(k)}$: the feasible direction method and the reduced gradient method. Interested readers may refer to classical nonlinear textbooks.
+
+\subsection{Penalty Method}
+
+The term "penalty" reflects the following attempt. Replace the original program (1) by appropriate free , or unconstrained,  optimization problems
+\begin{equation}
+\begin{array}{l}
+\quad \min _{x \in \mathbb{R}^{n}} F_{r s}(x):= f(x)+r \sum_{i \in I} \varphi\left(g_{i}(x)\right)+\frac{1}{s} \sum_{i \in J} \psi\left(g_{i}(x)\right)
+\end{array}
+\end{equation}
+where $ I, J \subset\{1, \cdots, m\}$  such that $ I \cap J=\emptyset, I \cup J=\{1, \cdots, m\}$ , and the parameters  $r, s>0$  are to be chosen or adapted in the course of the procedure. The role of the functions  $\varphi$  and  $\psi$  is to inhibit and to penalize respectively the violation of any one of the constraints. More precisely, for these functions we assume that:  $\varphi, \psi$  are monotonically increasing and convex; the so-called barrier function satisfies $$
+\begin{aligned}
+\varphi(\eta) &<+\infty \quad \forall \eta<0, \\
+\lim _{\eta \uparrow 0} \varphi(\eta) &=+\infty
+\end{aligned}
+$$
+
+and  for the so-called loss function we have
+$$
+\psi(\eta)\left\{\begin{array}{ll}
+=0 & \forall \eta \leq 0 \\
+>0 & \forall \eta>0
+\end{array}\right.
+$$
+
+\section{Preliminaries on Gröbner Basis and Graver Basis}
+
+Assume A to be an integer matrix, we further study the relationship between Test Set and (Reduced) Gröbner Basis of 
+$$(IP)_{c,b}: \text{min } \{cx: Ax=b \text{ and } x\in N^{n}\}
+$$
+First we need to transfer $IP_{c,b}$ to $IP_{>_{c},b}$ where $>_c$ denotes the complete total order. 
+
+\begin{definition}$>_c$ is the complete total order satistifying: $x>_c$ y  if \\
+\noindent 1.$c\cdot x>c\cdot y$ or\\
+\noindent 2. $c\cdot x>c\cdot y$ and $x>y$ where $>$ is an arbitrarily assigned monomial order.
+\end{definition}
+
+Note that $>_c$ satisfies (Attention: it's not a term order but almost is!)\\
+\noindent 1. $>_c$ is a total order on $N^{n}$. \\
+\noindent 2. $>_c$ is cmpatible with sum. \\
+
+Therefore we may make use of the refinement so as to get to the unique optimum.
+
+\begin{lemma} $\exists \alpha_{i}$ s.t. $\{\text{non-optimal solutions of all fibres}\}=\bigcup_{i=1}^{t}(\alpha(i)+N^{n})$  (immediate consequence of Gordan Dickson Lemma$^{\cite{ref3}}$) \end{lemma}
+
+\begin{theorem} $\exists$ testing set for $(IP)_{c,b}$. \end{theorem}
+
+\noindent\textbf{Proof.} (Geometric)  First we construct $\mathcal{G}_{A}=\{(\alpha(i)-\beta(i)),i=1,2,...,t\}$ where $\alpha(i)$ is given below and $\beta(i)$ is the corresponding unique optimum point of $(IP)_{>_c,b}(A \alpha (i))$.  Then we apply lemma 6.2.
+
+We can therefore draw an arrow from $\alpha(i)$ to $\beta(i)$ and translate it to all feasible points in $IP_{\{A,c\}}$ such that the translated vector is incident at the corresponding feasible points. By this construction we get to a connected digraph with the unique sink at the optimum point. 
+
+It's an easy corollary that $\mathcal{G}_{A}$ is a test set. \hfill $\square$ \\
+
+How does the name birth? We need to look at the map below and theorem  below explains everything. (We denote $A=[A_1,A_2,...,A_n]$ by column blocking and $y^{A_1}$ short for a monomial of $k[y_1,y_2,...,y_m]$ where m is the column number of A)
+\begin{align*}
+\pi:  k[x_1,x_2,...,x_n] & \to k[y^{A_1},y^{A_2},...,y^{A_n}] \\
+ x_{i} & \rightarrowtail y^{A_i}
+\end{align*}
+First we define a $\mathbb{Z}$-linear mapping
+\begin{align*}
+ \pi_*:  \mathbb{Z}^{n} & \to\mathbb{Z}^{m} \\
+ u & \rightarrowtail  Au
+\end{align*}
+Then $\pi$ and $\pi_*$ are related as $\pi(x^u)=\pi(x_{1}^{u_1}x_{2}^{u_2}...x_{n}^{u_n})=y^{A_1 u_1}...y^{A_n u_n}=y^{A u}=y^{\pi_*(u)}$.
+ we call the kernel of $\pi$ as \textbf{toric ideal} of A, denoted by $I_A$. \\
+ 
+ \begin{lemma}The toric ideal  $I_{A}$  is spanned as  $k$-vector space by the set of binomials  $$J=\left\{x^{u}-x^{v} \mid u, v \in \mathbb{N}^{n} \text { with } \pi_* (u)=\pi_* (v)\right\}. $$ \end{lemma}
+ 
+\noindent\textbf{Proof.}A binomial  $x^{u}-x^{v}$  lies in $ I_{A}$  if and only if  $\pi\left(x^{u}-x^{v}\right)=\pi\left(x^{u}\right)-\pi\left(x^{v}\right)=   x^{\pi_*(u)}-x^{\pi_*(v)}=0$. What remains to show is that every polynomial  $f \in I_{A}$  is a linear combination of such binomials with coefficients in  $k$ . Fix a term order  $<$  on $ k\left[x_{1}, \ldots, x_{n}\right]$ . Suppose $ f \in I_{A} $ can not be written as such a linear combination. Choose $ f $ such that  $L M_{<}(f)=x^{u}$  is smallest with respect to  $<$  for all such polynomials. Since  $f \in I_{A}$  we know
+$$0=\pi(f)=f\left(y^{A_{1}} \cdots y^{A_{n}}\right)=y^{\pi_*(u)}+\text { other terms. }$$
+
+In particular, we know that the term  $y^{\pi_*(u)}$  must cancel. Therefore, there exists a monomial  $x^{v}$  in  f , with  $x^{u}>x^{v}$  such that  $\pi(u)=\pi(v)$ . We know that  $f^{\prime}=f-\left(x^{u}-x^{v}\right)$  cannot be written as a  $k$-linear combination of binomials since otherwise  $f$  could. Since now  $L M(f)<L M\left(f^{\prime}\right)$ , we come to a contradiction for the minimality property of  f. The lemma is then proved. \hfill $\square$ \\
+ 
+\begin{theorem}$I_A = Ker(\pi) = <(x^{\alpha(i)}-x^{\beta(i)}),i=1,2,...,s>$. And actually $\{x^{\alpha(i)}-x^{\beta(i)},i=1,2,...,s\}$ forms a reduced Grobner basis. \end{theorem}
+
+\noindent\textbf{Proof.} Define
+$$\phi(u):=x^{u^+}-x^{u^-}$$
+
+Then we carry out to prove the theorem. First, it's trivial that $x^{\alpha_i}-x^{\beta_i}\in Ker(\pi_*)$ since $A\alpha_i=A\beta_i$.
+
+Since $\alpha_i >_c \beta_i$ for all $i= 1,...,s$, we have that 
+$$ LM_{>_c}(x^{\alpha_i}-x^{\beta_i})=x^{\alpha_i} \implies \big<x^{\alpha_i}\big> \subset LM_{>_c}(Ker(\pi)).
+$$From the lemma  it is enough to show that  $x^{\alpha} \in\left\langle x^{\alpha(i)}, i=1, \ldots, s\right\rangle$  for each binomial  $x^{\alpha}-x^{\beta} \in J$ . We may assume that $LM_{>}(x^{\alpha}-x^{\beta})=x^{\alpha}.$ Now  $LM_{>}\left(x^{\alpha}-x^{\beta}\right)=x^{\alpha}$  implies that  $\alpha>_{c} \beta$. Therefore  $\alpha$  is a nonoptimal point with respect to $ >_{c}$  in the  $A \alpha $-fiber of IP. Therefore  $\alpha$  is in the set of all nonoptimal points from all fibers of IP, which is $\bigcup_{i=1}^{s}\left(\alpha(i)+\mathbb{N}^{n}\right)$. This implies that  $\alpha=\alpha(i)+v$  for some  $i \in\{1, \ldots, s\}$  and  $v \in \mathbb{N}^{n}$. Therefore  $x^{\alpha(i)}$  divides  $x^{\alpha}$  which in turn implies that  $x^{\alpha} \in\left\langle x^{\alpha(i)}, i=1, \ldots, s\right\rangle$. Therefore  $\{x^{\alpha(i)}-x^{\beta(i)},i=1,2,...,s\}$  is a Gröbner basis for  $I_A$  with respect to  $>_{c}$, which is clearly reduced observing from their construction.\hfill $\square$ \\
+
+We  give a general method for specifying monomial orders on $k[x_1, . . . , x_n]$.  We assert the following lemma  without proof since it's useful to prove the theorem below.
+ 
+\begin{lemma} Given any $m \times n$ real matrix M and an monomial order $>$. Then we define $x^{\alpha}>_M x^{\beta}$ if and only if $$ M\cdot \alpha >M\cdot \beta.$$ Let M be an $m \times n$ real matrix with non-negative entries s.t. $ker(M) \cap \mathbb{Z}^{n}= \{0\}$.Then $>_M$ is a monomial order on $k[x_1, . . . , x_n]$. (See Exercise 8 of §2 of \cite{ref2}.) \end{lemma}
+
+\begin{theorem} (optional/new)  By giving different term order $>$ for $>_c$, we can use the $>_c$ and the corresponding geometric bunchberger algorithm to get all optimum points of the problem $IP_{c,b}$. (Recall that we should specify the composite order to use the geometric bunchberger's algorithm.)\end{theorem}
+
+\noindent\textbf{Proof.}  Suppose the optimum of the $(IP)_{c,b}$ forms a set $\{x_1,x_2,...,x_m\}$. Then it's clear $\forall j$ $ \exists c>0( c\cdot x_j\neq c\cdot x_i,\forall i\neq j$). Actually we can prove it by contradiction: since $\sum_{i}m(\{c:c\cdot x_j= c\cdot x_i\})$=0, there must exist some c such that $c\cdot x_j\neq c\cdot x_i,\forall i\neq j$. ($m()$ denotes the Lebesgue measure.)
+
+Therefore we can find the interval ($a_j,\tilde{a}_j$] $\subset \mathbb{R}$ s.t. \\
+\indent \indent 1. $c\cdot x_i \in$ ($a_i,\tilde{a}_i$], $\forall i$.  \\
+\indent  \indent 2. ($a_j,\tilde{a}_j$] $\cap$  ($a_i,\tilde{a}_i$]=$\emptyset,\forall i\neq j$.  
+
+Then we define a total order on $\mathbb{R}$, denoted by $>_{s}$ s.t.  \\
+\indent \indent 1. Define $ A=\big(\mathbb{R}-\bigcup_{i\neq j}$($a_i,\tilde{a}_i$]$\big)$, $B = \bigcup_{i\neq j}$($a_i,\tilde{a}_i$], and $C =$($a_j,\tilde{a}_j$]. \\
+\indent \indent 2. All the elements in $A,B,C$ are compared in the usual way. \\
+\indent \indent 3. If $a\in A,b\in B,c\in C$, a and b are compared in the usual way; $b<c$; $a<c$ iff.  $\exists d\in B(a \leq d)$. 
+
+Therefore we get to a total order on $\mathbb{R}$ such that $b<_{s}c$ whenever $b\in B$ and $c\in C$. Applying the order $>_{s}$ to build up the monomial order on $k[x_1, . . . , x_n]$ as follows. We let
+$$M=\begin{pmatrix} c^T \\ ... \end{pmatrix}$$
+where $...$ is filled with positive numbers such that M satisfies the conditions of lemma 3.
+
+Finally we can form the composite order $>_c$ of cost and $>_M$, which satisfies $x_j >_{c} x_i,\forall j\neq i$. \hfill $\square$
+
+\subsection{New Algorithms in IP}
+Recently, various algebraic integer programming (IP) solvers have been proposed based on the theory of Gröbner bases. The main difficulty of these solvers is the size of the Gröbner bases generated. So we propose an algorithm calculating the test set of $(IP)_{c,b}$ much faster.\\
+
+Recall that 
+
+\begin{align*}
+\pi:  k[x_1,x_2,...,x_n] & \to k[y^{A_1},y^{A_2},...,y^{A_n}] \\
+ x_{i} & \rightarrowtail y^{A_i}
+\end{align*}
+
+and
+\begin{align*}
+ \pi_*:  \mathbb{Z}^{n} & \to\mathbb{Z}^{m} \\
+ u & \rightarrowtail  Au
+\end{align*}
+From the above section, we know that the algorithm in Gröbner bases of IP is to find a "minimal" generator of $Ker(\pi)$ , i.e. $Ker(\pi_*)$.
+
+From \cite{kernel}, we have an important observation. First we recall the definition
+$$\phi(u):=x^{u^+}-x^{u^-}.$$
+
+\begin{theorem}Let $K \in \mathbb{N}^{k\times n}$. Then $\phi(K)=\phi(span(K))$\end{theorem}
+
+We let K be a basis for $Ker(\pi_*)$ consisting of k elements (to simplify notation, we will use K to denote a basis for $Ker(\pi_*)$ as well as the matrix in $\mathbb{Z}^{k\times n}$ whose rows are the vectors in K). 
+
+\begin{theorem}For $K,K'\in \mathbb{Z}^{k\times n}$, define $K'\sim K$ if $\text{span} K' = \text{span} K$, i.e. $K' = AK$ for some $A\in \mathbb{Z}^{k\times k}$ s.t. $|\text{det}(A)|=1$. \end{theorem}
+
+From definition we immediately get 
+
+\begin{proposition}Let $K\in \mathbb{Z}^{k\times n}$. Then there exists a $\tilde{K}\sim K$ such that each column vector of $\tilde{K}$ is either in $\mathbb{N}^k$ or $(-\mathbb{N})^k$. \end{proposition}
+
+From Proposition 3, we get to $\tilde{K}$. Then let $J \subset \{1, 2, ..., n\}$ be the index set of all columns with negative entries, and let $K'$ be the matrix obtained from $\tilde{K}$ by reversing all signs in the columns indexed by J. 
+
+Here's another important observation. First we define $T_j:\mathbb{Z}^n \to \mathbb{Z}^n $ as the operator that switches the sign of the $j$-th component of the vectors in $\mathbb{Z}^n$. Further, if $p \in k[x_1,...,x_n]$ has the form $p = \phi(u)$ for some $u\in\mathbb{Z}^n$ , we denote $T_j (p) = \phi(T_j(u))$. 
+
+\begin{theorem}Let  $K \in \mathbb{Z}^{k \times n}$  and assume that there exists a finite set  $U \subset \operatorname{span} K$  such that  $\langle\varphi(U)\rangle=\langle\varphi(\operatorname{span} K)\rangle$. If G  is the reduced Gröbner basis for  $\langle\varphi(U)\rangle$, with respect to a term order that eliminates  $x_{j}$ , then $ \left\langle T_{j} G\right\rangle=\left\langle\varphi\left(\operatorname{span}\left(T_{j} K\right)\right)\right\rangle$. \end{theorem}
+
+We are now ready to describe our algorithm to calculate  $\operatorname{ker} \pi$. Let K be a basis for $\operatorname{ker}  \pi_{*}$. By Lemma  3.8  there exists an equivalent basis  $K^{\prime}$  such that each column of  $K^{\prime}$  is either in  $\mathbb{N}^{n}$  or in  $(-\mathbb{N})^{n}$. Let  $J \subseteq\{1,2, \ldots, n\}$  be the index set of all columns with negative entries, and let  $K_{J}^{\prime}$  be the matrix obtained from  $K^{\prime}$  by reversing all signs in the columns indexed by J. By Theorem 2, 
+$$\left\langle\varphi\left(K_{J}^{\prime}\right)\right\rangle=\left\langle\varphi\left(\operatorname{span} K_{J}^{\prime}\right)\right\rangle .$$
+
+If  $J=\varnothing$  we are done. If  $J \neq \varnothing$ , let  $j$  be any element of  $J$. Theorem 3 enables us to derive from  $\varphi\left(K_{J}^{\prime}\right)$  a finite set of generators for  $\left\langle\varphi\left(\operatorname{span} K_{J \backslash\{j\}}^{\prime}\right)\right\rangle$. Compute the Gröbner basis for  $\varphi\left(K_{J}^{\prime}\right)$  with respect to a term order that eliminates  $x_{j}$  and apply the operator  $T_{j}$  to it. Proceeding recursively, we can calculate a finite set of generators for  $\varphi\left(\operatorname{span} K_{J}^{\prime}\right)$, which by Theorem 2 equals $\operatorname{ker} \pi_*$ .
+
+\begin{proposition}(new) The proposed algorithm requires the determination of at most $[\frac{1}{2}n]$ Grobner bases over $k[x_1,x_2,...,x_n]$. \end{proposition}
+
+\noindent\textbf{Proof. }Actually the number of determination is at most the number of the elements of $J$.
+
+Remark: based on the (empirical) fact that the complexity of the
+Buchberger algorithm is a strongly growing function of the number of variables, we conclude that it's in general more efficient to evaluate $[\frac{1}{2}n]$ Grobner bases over $k[x_1,x_2,...,x_n]$ than one Grobner basis over $k[x_1,x_2,...,x_n,y_1,y_2,...,y_m]$. \hfill $\square$\\
+
+The algorithm in P392 of \cite{ref2} is based on the Elimination lemma applied to the  $k[x_1,x_2,..,x_n,y_1,y_2,...,y_m]$, which is \textbf{not applicable in large scale}. And so is the  Geometric Buchberger’s algorithm$^{[1]}$. So from literature [4], we give a new idea of algorithm below
+$$\text{Finding Reduced Grobener Basis}\to \text{Augmentation Algorithm}$$
+The detailed algorithm to solve the IP is gathered as follows. The value of the algorithm is that it is more efficient to calculate a moderate number of Gröbner bases over  $k[x_1,...,x_n]$  instead of  over  $K[x_1,...,x_n, y_1,...,y_m]$ . This is especially true for the memory requirements of the proposed algorithm.\\
+
+\begin{algorithm}(new) computation of reduced Gröbner bases \\
+\noindent 1. Calculate a basis $K$ for $\operatorname{ker} \pi_{*}$. \\
+\noindent  2. Find an equivalent basis  $K^{\prime}$  such that all rows of  $K^{\prime}$  lie in the same orthant. \\
+\noindent  3. Let  $J$  be the index set of all columns with negative entries and let  $K_{J}^{\prime}$  be the matrix obtained from  $K^{\prime}$  by reversing the signs of the columns indexed by  $J$.  \\
+\noindent  4. Let $G_{J}=\varphi\left(K_{J}^{\prime}\right)$. \\
+\noindent  5. Until  $J=\varnothing$ , repeat this: Take  $j \in J$  and let  $G_{J \backslash\{j\}}$  be the result of $T_{j}$ operating on the reduced Gröbner basis for  $<G_{J}>$ with respect to a term order that eliminates  $x_{j}$ ; then let  $J \leftarrow   J \backslash\{j\}$ . \\
+\noindent  6. Output  $G_{\varnothing}$ , a generating set for  $\operatorname{ker} \pi $ which is finite.\\
+\noindent 7. Use $G_{\varnothing}$ to generate the reduced grobner Basis $\{x^{\alpha(i)}-x^{\beta(i)}:i=1,2...,s\}$. (e.g. apply BunchBerger Algorithm)\\
+\noindent  8. Augmentation Algorithm. 
+\end{algorithm}
+
+\section{Lagrangian Relaxation Based Method}
+The idea of the following method is to create copies of the first-stage decision variables for each scenario and then apply Lagrangian dualization to decompose the SIP. Recall that the Lagrangian dual of an LP problem simply generalizes the LP dual. (\cite{Lagrangian Relaxation})
+
+First we recall the Deterministic equivalent of an SMIP is 
+\begin{equation}
+\begin{array}{ll}
+\min & c^{T} x+\sum_{i=1}^{N} p_{i} q_{i}^{T} y_{i} \\
+\text { s.t. } & A x \geq b \\
+& T_{i} x+W_{i} y_{i}=h_{i} \\
+& x \in \mathbb{R}_{+}^{n_{1}} \times \mathbb{Z}_{+}^{p_{1}} \\
+& y_{i} \in \mathbb{R}_{+}^{n_{2}} \times \mathbb{Z}_{+}^{p_{2}}, \quad i=1, \ldots, N
+\end{array}
+\end{equation}
+By adding the nonanticipativity constraints $x_i =\sum_{i'=1}^{N} p_{i'}x_{i'}$ , we have the equivalent form
+\begin{equation}
+\begin{array}{ll}
+\min & \sum_{i=1}^{N} p_{i} (c^T x_i + q_{i}^{T} y_{i}) \\
+\text { s.t. } & A x_i \geq b, \quad i=1, \ldots, N \\
+& T_{i} x_i+W_{i} y_{i}=h_{i},  \quad i=1, \ldots, N \\
+& x_i =\sum_{i'=1}^{N} p_{i'}x_{i'}, \quad i=1, \ldots, N \\
+& x_{i} \in \mathbb{R}_{+}^{n_{1}} \times \mathbb{Z}_{+}^{p_{1}}, \quad i=1, \ldots, N \\
+& y_{i} \in \mathbb{R}_{+}^{n_{2}} \times \mathbb{Z}_{+}^{p_{2}}, \quad i=1, \ldots, N
+\end{array}
+\end{equation}
+Then we relax these constraints using Lagrangian Relaxation with dual vectors $\lambda = (\lambda_1, . . . , \lambda_N )$:
+
+\begin{equation}
+\begin{array}{ll}
+\min & \sum_{i=1}^{N} p_{i} (c^T x_i + q_{i}^{T} y_{i}) + \sum_{i=1}^{N}p_i\lambda_{i}^{T}(x_i -\sum_{i'=1}^{N} p_{i'}x_{i'})=\sum_{i=1}^{N} p_{i} ((c+\lambda_i - \bar{\lambda})^T x_i + q_{i}^{T} y_{i})\\
+\text { s.t. } & A x_i \geq b, \quad i=1, \ldots, N \\
+& T_{i} x_i+W_{i} y_{i}=h_{i},  \quad i=1, \ldots, N \\
+& x_{i} \in \mathbb{R}_{+}^{n_{1}} \times \mathbb{Z}_{+}^{p_{1}}, \quad i=1, \ldots, N \\
+& y_{i} \in \mathbb{R}_{+}^{n_{2}} \times \mathbb{Z}_{+}^{p_{2}}, \quad i=1, \ldots, N
+\end{array}
+\end{equation}
+where we rewrite the objective by $\bar{\lambda}=\sum_{i=1}^{N} p_i \lambda_i$. 
+
+Therefore, we have the Lagrangian relaxation problem decomposes as $ \mathcal{L}(\lambda)=\sum_{i=1}^{N} p_{i} D_{i}(\lambda_i) $ where $ D_{i}(\lambda_i)$ is 
+
+\begin{equation}
+\begin{array}{ll}
+\min &  (c+\lambda_i - \bar{\lambda})^T x_i + q_{i}^{T} y_{i}\\
+\text { s.t. } & A x_i \geq b \\
+& T_{i} x_i +W_{i} y_{i}=h_{i} \\
+& x_{i} \in \mathbb{R}_{+}^{n_{1}} \times \mathbb{Z}_{+}^{p_{1}} \\
+& y_{i} \in \mathbb{R}_{+}^{n_{2}} \times \mathbb{Z}_{+}^{p_{2}}
+\end{array}
+\end{equation}
+
+Then we define the value of Lagrangian dual $w^{L D}:=\max\{\mathcal{L}(\lambda):\bar{\lambda}=  \sum_{i=1}^{N}p_i\lambda_i=0\}$, and we give a relevant theorem (Readers can also refer to proposition 2 in \cite{ref3} , but the proof in that paper has a gap which is fixed below.)
+
+\begin{theorem}
+$$w^{L D}=\min \left\{c^{T} x+\sum_{i=1}^{N} p_{i} q_{i} y_{i}:\left(x, y_{i}\right) \in \operatorname{conv}\left(X_{i}\right), i=1, \ldots, N\right\}
+$$
+where for $ i=1, \ldots, N $
+\begin{equation}
+\begin{aligned}
+X_{i}:=\{(x, y):& A x \geq b, T_{i} x+W_{i} y=h_{i} \\
+&\left.x \in \mathbb{R}_{+}^{n_{1}} \times \mathbb{Z}_{+}^{p_{1}}, y \in \mathbb{R}_{+}^{n_{2}} \times \mathbb{Z}_{+}^{p_{2}}\right\}
+\end{aligned}
+\end{equation}
+\end{theorem}
+\noindent \textbf{Proof.} From Theorem 6.2 in \cite{Integer and Combinatorial Optimization}, p. 327, we have that  
+$$\max\{\mathcal{L}(\lambda):\lambda\geq 0 \text{ and }\bar{\lambda}=  \sum_{i=1}^{N}p_i\lambda_i=0\}=\min \left\{\sum_{i=1}^{N} p_{i} (c^T x_i + q_{i}^{T} y_{i}): x_i \leq\sum_{i'=1}^{N} p_{i'}x_{i'}, (x_i,y_i) \in \operatorname{conv}\left(X_{i}\right), i=1, \ldots, N\right\}
+$$
+Similarly, we have 
+$$\max\{\mathcal{L}(\lambda):\lambda\leq 0 \text{ and }\bar{\lambda}=  \sum_{i=1}^{N}p_i\lambda_i=0\}=\min \left\{\sum_{i=1}^{N} p_{i} (c^T x_i + q_{i}^{T} y_{i}): x_i \geq\sum_{i'=1}^{N} p_{i'}x_{i'}, (x_i,y_i) \in \operatorname{conv}\left(X_{i}\right), i=1, \ldots, N\right\}
+$$
+From the two equations above, we have the result. \hfill $\square$
+
+Here immediately follow some properties.
+
+\begin{proposition} Here are some relationships between $w^{L D}$, $z^{S M I P}$ and $z^{S L P}$: \\
+\indent (1) In general  $w^{L D}<z^{S M I P} $ \\
+\indent (2)  $w^{L D} \geq z^{S L P}$  (the usual LP relaxation) \\
+\indent (3) $w^{L D}$  at least as good as any bound obtained using cuts in single scenario sub-problems \\
+\indent (4)  In many test instances,  $w^{L D}$  is very close to  $z^{S M I P}$ . \\
+\end{proposition}
+
+Therefore, it suffices to search for $w^{L D}$ where $w^{L D}=\max\{\mathcal{L}(\lambda):\bar{\lambda}=  \sum_{i=1}^{N}p_i\lambda_i=0\}$ is the optimization program of a piece-wise linear and convex function.
+
+The method can be generalized to the case of a multi-stage stochastic program.  Interested readers can go to \cite{Caroe and Schultz 1997}.
+
+\subsection{Lagrangian Relaxation Based Method with Graver Basis}
+We give without proof the theorem below.  Suppose 
+$$
+A_N:=\left(\begin{array}{ccccc}
+W_1 & 0 & \cdots & 0 \\
+ 0 & W_2 & \cdots & 0 \\
+\vdots & \vdots & \ddots & \vdots  \\
+ 0 & 0 & \cdots & W_N
+\end{array}\right)
+$$
+\begin{theorem}
+Let $\mathcal{GR}(\cdot)$ denotes the Graver Basis of a matrix, then  $\mathcal{GR}(A_N)=\{(0,0,..,v_i,...,0)\text{ where } v_i\in \mathcal{GR}(W_i)\}$. Similar results hold for Grobner Basis.
+\end{theorem}
+
+Lagrangian duality provides lower bounds on the optimal value of problem and corresponding optimal solutions  $\left(x^{j}, y^{j}\right), j=1, \ldots, N$ , of the Lagrangian relaxation. In general, these scenario solutions will not coincide in their  x-component unless the duality gap vanishes. We now elaborate a branch and bound procedure for Eq. (1) that uses Lagrangian relaxation of non-anticipativity constraints as bounding procedure. To come up with candidates for feasible first-stage solutions  x  various heuristic ideas starting from the scenario solutions  $x^{j}, j=1, \ldots, N$ can be tried. In the present paper we use the average  $\bar{x}=\sum_{j=1}^{r} p^{j} x^{j}$ , combined with some rounding heuristic in order to fulfill the integrality restrictions. In the following,  $\mathscr{P}$  denotes the list of current problems together with associated lower bounds  $z_{\mathrm{L D}}=z_{\mathrm{L D}}(P)$ . The outline of the algorithm is as follows:
+
+\begin{algorithm}( Graver Basis, Sub-gradient, Branch and Bound)\\
+\noindent $ \underline{\text {Step 1: }}$ Compute the Graver Basis of the matrix of the Lagrangian dual of the original problem \\
+\noindent $ \underline{\text {Step 2: }}$  Initialization: Set  $\underline{z}=\infty$  and let $ \mathscr{P}$  consist of the original problem. \\
+\noindent $ \underline{\text {Step 3: }}$ Termination: If  $\mathscr{P}=\emptyset$  then the solution  $\hat{x}$  that yielded  $\underline{z}=c \hat{x}+Q(\hat{x})$  is optimal.\\
+\noindent $ \underline{\text {Step 4: }}$ Node selection: Select and delete a problem  P  from  $\mathscr{P}$ , solve the corresponding Lagrangian dual (\textbf{For each $\lambda$, use Graver Basis to compute the corresponding optimum  })whose optimal value yields the bound  $z_{\mathrm{LD}}=z_{\mathrm{LD}}(P) $. If  P  is infeasible  $\left(z_{\mathrm{LD}}=\infty\right)$  go to Step 2 .\\
+\noindent $ \underline{\text {Step 5: }}$ Bounding: If  $z_{\mathrm{LD}}(P) \geqslant \underline{z}$  go to Step 2 (this step can be carried out as soon as the value of the Lagrangian dual falls below  $\underline{z}$  ).\\
+\indent (i) The scenario solutions  $x^{j}, j=1, \ldots, N$ , are identical: Let  $\underline{z}:=\min \left\{\underline{z}, c x^{j}+Q\left(x^{j}\right)\right\}$  and delete from  $\mathscr{P}$  all problems  $P^{\prime}$  with  $z_{\mathrm{LD}}\left(P^{\prime}\right) \geqslant \underline{z}$ . Go to Step 2 .\\
+\indent (ii) The scenario solutions  $x^{j}, j=1, \ldots, N$  differ: Compute the average  $\bar{x}$  and round it by some heuristic to obtain  $\bar{x}^{\mathrm{R}}$ . If  $\bar{x}^{\mathrm{R}}$  is feasible then let  $\underline{z}:=\min \left\{\underline{z}, c \bar{x}^{-\mathrm{R}}+Q\left(\bar{x}^{\mathrm{R}}\right)\right\}$  and delete from  $\mathscr{P}$  all problems  $P^{\prime}$  with  $z_{\mathrm{LD}}\left(P^{\prime}\right) \leqslant \underline{z}$ . Go to Step 5 .\\
+\noindent $ \underline{\text {Step 6: }}$ Branching: Select a component  $x_{i}$  of  x  and add two new problems to  $\mathscr{P}$  obtained from  P  by adding the constraints  $x_{i} \leqslant\left\lfloor\bar{x}_{i}\right\rfloor$  and  $x_{i} \geqslant\left\lfloor\bar{x}_{i}\right\rfloor+1$, respectively (if  $x_{i}$  is an integer component) or $ x_{i} \leqslant \bar{x}_{i}-\varepsilon$  and  $x_{i} \geqslant \bar{x}_{i}+\varepsilon$ , respectively, where  $\varepsilon>0$  is a tolerance parameter to have disjoint subdomains.
+\end{algorithm}
+
+\subsection{Lagrangian Cut Based Method}
+
+Recall that In dual decomposition for
+$$
+\begin{array}{lll}
+\min _{x, x^{s}, y^{s}} & \sum_{s \in S} p_{s}\left(c^{T} x^{s}+\left(q^{s}\right)^{T} y^{s}\right) \\
+\text { s.t. } & A x^{s} \geq b, & \\
+& T^{s} x^{s}+W^{s} y^{s} \geq h^{s}, & s \in S, \\
+& x^{s} \in X, y^{s} \in Y, & s \in S, \\
+& x^{s}=x, & s \in S
+\end{array}
+$$
+We have that Lagrangian relaxation is applied to the nonanticipativity constraints  $x^{s}=x$  in this formulation with multipliers  $\lambda^{s}$  for  $s \in S$ , which gives the following Lagrangian relaxation problem:
+$$
+\begin{aligned}
+z(\lambda)=\min _{x, x^{s}, y^{s}} & \sum_{s \in S} p_{s}\left(c^{T} x^{s}+\left(q^{s}\right)^{T} y^{s}\right)+\sum_{s \in S} p_{s}\left(\lambda^{s}\right)^{\top}\left(x^{s}-x\right) \\
+\text { s.t. } &\left(x^{s}, y^{s}\right) \in K^{s}, \quad s \in S
+\end{aligned}
+$$
+where  $K^{s}:=\left\{x \in X, y \in Y: A x \geq b, T^{s} x+W^{s} y \geq h^{s}\right\}$  for each  $s \in S$ . Throughout this paper we assume that  $K^{s}$  is nonempty for each  $s \in S$. 
+
+The BDD algorithm is a version of Benders decomposition that uses strengthened Benders cuts and Lagrangian cuts to tighten the Benders model. In particular, they solve two types of scenario MIPs to generate optimality and feasibility cuts for  $E^{s}$  :\\
+
+1. Given any  $\lambda \in \mathbb{R}^{n}$ , let  $\left(\bar{x}_{\lambda}^{s}, \bar{y}_{\lambda}^{s}\right) $ be an optimal solution of
+
+$$\min _{x, y}\left\{\lambda^{T} x+\left(q^{s}\right)^{T} y:(x, y) \in K^{s}\right\} .$$
+
+Then the following Lagrangian optimality cut is valid for  $E^{s}$  :
+
+$$\lambda^{T}\left(x-\bar{x}_{\lambda}^{s}\right)+\theta_{s} \geq\left(q^{s}\right)^{T} \bar{y}_{\lambda}^{s} .$$
+
+2. Given any  $\lambda \in \mathbb{R}^{n}$ , let  $\left(\hat{x}_{\lambda}^{s}, \hat{y}_{\lambda}^{s}, \hat{u}_{\lambda}^{s}, \hat{v}_{\lambda}^{s}\right)$  be an optimal solution of
+
+$$\min _{x, y, u, v}\left\{\mathbb{1}^{T} v+\mathbb{1}^{T} u+\lambda^{T} x: A x+u \geq b, T^{s} x+W^{s} y+v \geq h^{s}, x \in X, y \in Y\right\} .$$
+
+Then the following Lagrangian feasibility cut is valid for  $E^{s}$ :
+$$\lambda^{T}\left(x-\hat{x}_{\lambda}^{s}\right) \geq \mathbb{1}^{T} \hat{v}_{\lambda}^{s}+\mathbb{1}^{T} \hat{u}_{\lambda}^{s} .$$
+
+The BDD algorithm generates both types of Lagrangian cuts by heuristically solving a Lagrangian cut generation problem. Numerical results from [4] show that Lagrangian cuts are able to close significant gap at the root node for a variety of SIP problems. Our goal in this work is to provide new methods for quickly finding strong Lagrangian cuts. Here to compute every cuts we can apply algorithm with Gröbner Basis and Graver Basis efficiently.
+
+\section{Scenario Bundling}
+
+This method is based on a simple idea: \\
+\indent (1) Partition scenario set as:  $\{1, \ldots, S\}=\bigcup_{k=1}^{K} B_{k}, B_{k} \cap B_{k^{\prime}}=\emptyset $. \\
+\indent (2) When doing decomposition, treat scenarios within each "bundle" as a single scenario. \\
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+\newpage
+\newcommand{\doi}[1]{doi: \href{https://doi.org/#1}{#1}}
+\begin{thebibliography}{99}  
+\bibitem{Hemmecke and Schultz 2003}Hemmecke, R., and R. Schultz. “Decomposition of Test Sets in Stochastic Integer Programming.” Mathematical Programming, vol. 94, no. 2-3, 2003, pp. 323–341., \doi{https://doi.org/10.1007/s10107-002-0322-1}.
+\bibitem{Schultz et al. 1998}Schultz, Rüdiger, et al. “Solving Stochastic Programs with Integer Recourse by Enumeration: A Framework Using Gröbner Basis.” Mathematical Programming, vol. 83, no. 1-3, 1998, pp. 229–252., \doi{https://doi.org/10.1007/bf02680560}.
+\bibitem{Caroe and Schultz 1997} Carøe, Claus C., and Rüdiger Schultz. “Dual Decomposition in Stochastic Integer Programming.” Operations Research Letters, vol. 24, no. 1-2, 1999, pp. 37–45., \doi{https://doi.org/10.1016/s0167-6377(98)00050-9}. 
+\bibitem{Lagrangian Relaxation} “Integer Programming: Lagrangian Relaxation.” SpringerReference, \doi{https://doi.org/10.1007/springerreference\_72368}. 
+\bibitem{Integer and Combinatorial Optimization} Nemhauser, George L. Integer and Combinatorial Optimization. John Wiley and Sons, 1999. 
+
+
+\bibitem{Benders 1962}Benders, J. F. “Partitioning Procedures for Solving Mixed-Variables Programming Problems.” Numerische Mathematik, vol. 4, no. 1, 1962, pp. 238–252., \doi{https://doi.org/10.1007/bf01386316}.
+\bibitem{Schultz 1993}Schultz, Rüdiger. “Continuity Properties of Expectation Functions in Stochastic Integer Programming.” Mathematics of Operations Research, vol. 18, no. 3, 1993, pp. 578–589., \doi{https://doi.org/10.1287/moor.18.3.578}. 
+\bibitem{Louveaux and Schultz (2003)}Louveaux, François V., and Rüdiger Schultz. “Stochastic Integer Programming.” Handbooks in Operations Research and Management Science, 2003, pp. 213–266., \doi{https://doi.org/10.1016/s0927-0507(03)10004-7}. 
+\bibitem{Sen (2005)}Sen, Suvrajeet. “Algorithms for Stochastic Mixed-Integer Programming Models.” Discrete Optimization, 2005, pp. 515–558., \doi{https://doi.org/10.1016/s0927-0507(05)12009-x}. 
+\bibitem{Ahmed et al. 2004}Ahmed, Shabbir, et al. “A Finite Branch-and-Bound Algorithm for Two-Stage Stochastic Integer Programs.” Mathematical Programming, vol. 100, no. 2, 2004, pp. 355–377., \doi{https://doi.org/10.1007/s10107-003-0475-6}. 
+\bibitem{Sen and Sherali 2006}Sen, Suvrajeet, and Hanif D. Sherali. “Decomposition with Branch-and-Cut Approaches for Two-Stage Stochastic Mixed-Integer Programming.” Mathematical Programming, vol. 106, no. 2, 2005, pp. 203–223., \doi{https://doi.org/10.1007/s10107-005-0592-5}. 
+\bibitem{Zhang and Kucukyavuz 2014}Zhang, Minjiao, and Küçükyavuz Si̇mge. “Finitely Convergent Decomposition Algorithms for Two-Stage Stochastic Pure Integer Programs.” SIAM Journal on Optimization, vol. 24, no. 4, 2014, pp. 1933–1951., \doi{https://doi.org/10.1137/13092678x}. 
+\bibitem{Sen and Higle 2005}Sen, Suvrajeet, and Julia L. Higle. “The C3 Theorem and a D2 Algorithm for Large Scale Stochastic Mixed-Integer Programming: Set Convexification.” Mathematical Programming, vol. 104, no. 1, 2005, pp. 1–20., \doi{https://doi.org/10.1007/s10107-004-0566-z}.
+\bibitem{Kleywegt et al. 2001}Kleywegt, Anton J., et al. “The Sample Average Approximation Method for Stochastic Discrete Optimization.” SIAM Journal on Optimization, vol. 12, no. 2, 2002, pp. 479–502., \doi{https://doi.org/10.1137/s1052623499363220}. 
+\bibitem{Ntaimo 2010}Ntaimo, Lewis. “Disjunctive Decomposition for Two-Stage Stochastic Mixed-Binary Programs with Random Recourse.” Operations Research, vol. 58, no. 1, 2010, pp. 229–243., \doi{https://doi.org/10.1287/opre.1090.0693}.
+\bibitem{Zou et al. 2017}Zou, Jikai, et al. “Stochastic Dual Dynamic Integer Programming.” Mathematical Programming, vol. 175, no. 1-2, 2018, pp. 461–502., \doi{https://doi.org/10.1007/s10107-018-1249-5}. 
+\bibitem{Laporte and Louveaux (1993)}Laporte, Gilbert, and François V. Louveaux. “The Integer L-Shaped Method for Stochastic Integer Programs with Complete Recourse.” Operations Research Letters, vol. 13, no. 3, 1993, pp. 133–142., \doi{https://doi.org/10.1016/0167-6377(93)90002-x}. 
+\bibitem{Caroe and Schultz 1999}Carøe, Claus C., and Jørgen Tind. “L-Shaped Decomposition of Two-Stage Stochastic Programs with Integer Recourse.” Mathematical Programming, vol. 83, no. 1-3, 1998, pp. 451–464., \doi{https://doi.org/10.1007/bf02680570}. 
+\bibitem{Kim and Mehrotra 2015}Kim, Kibaek, and Sanjay Mehrotra. “A Two-Stage Stochastic Integer Programming Approach to Integrated Staffing and Scheduling with Application to Nurse Management.” Operations Research, vol. 63, no. 6, 2015, pp. 1431–1451., \doi{https://doi.org/10.1287/opre.2015.1421}. 
+\bibitem{Angulo et al. 2016}Angulo, Gustavo, et al. “Improving the Integer L-Shaped Method.” INFORMS Journal on Computing, vol. 28, no. 3, 2016, pp. 483–499., \doi{https://doi.org/10.1287/ijoc.2016.0695}. 
+\bibitem{Laporte et al. 2002}Laporte, Gilbert, and François V. Louveaux. “The Integer L-Shaped Method for Stochastic Integer Programs with Complete Recourse.” Operations Research Letters, vol. 13, no. 3, 1993, pp. 133–142., \doi{https://doi.org/10.1016/0167-6377(93)90002-x}. 
+\bibitem{Ahmed and Sahinidis 2003}: Ahmed, Shabbir, and Nikolaos V. Sahinidis. “An Approximation Scheme for Stochastic Integer Programs Arising in Capacity Expansion.” Operations Research, vol. 51, no. 3, 2003, pp. 461–471., \doi{https://doi.org/10.1287/opre.51.3.461.14960}. 
+\bibitem{Gunpinar and Centeno 2015}Gunpinar, Serkan, and Grisselle Centeno. “Stochastic Integer Programming Models for Reducing Wastages and Shortages of Blood Products at Hospitals.” Computers & Operations Research, vol. 54, 2015, pp. 129–141., \doi{https://doi.org/10.1016/j.cor.2014.08.017}.
+\bibitem{Kim and Mehrotra 2015}Kim, Kibaek, and Sanjay Mehrotra. “A Two-Stage Stochastic Integer Programming Approach to Integrated Staffing and Scheduling with Application to Nurse Management.” Operations Research, vol. 63, no. 6, 2015, pp. 1431–1451., \doi{https://doi.org/10.1287/opre.2015.1421}. 
+\bibitem{Wang and  Jacquillat 2020} Wang, Kai, and Alexandre Jacquillat. “A Stochastic Integer Programming Approach to Air Traffic Scheduling and Operations.” Operations Research, vol. 68, no. 5, 2020, pp. 1375–1402., \doi{https://doi.org/10.1287/opre.2020.1985}. 
+\bibitem{Fischetti and Toth 1989}Fischetti, Matteo, and Paolo Toth. “An Additive Bounding Procedure for Combinatorial Optimization Problems.” Operations Research, vol. 37, no. 2, 1989, pp. 319–328., \doi{https://doi.org/10.1287/opre.37.2.319}. 
+\bibitem{Fischetti and Toth 1992}Fischetti, Matteo, and Paolo Toth. “An Additive Bounding Procedure for the Asymmetric Travelling Salesman Problem.” Mathematical Programming, vol. 53, no. 1-3, 1992, pp. 173–197., \doi{https://doi.org/10.1007/bf01585701}. 
+\bibitem{Baldacci et al. 2008}Baldacci, Roberto, et al. “An Exact Algorithm for the Vehicle Routing Problem Based on the Set Partitioning Formulation with Additional Cuts.” Mathematical Programming, vol. 115, no. 2, 2007, pp. 351–385.,\doi{ https://doi.org/10.1007/s10107-007-0178-5}. 
+\bibitem{Baldacci and Mingozzi 2009}Baldacci, Roberto, and Aristide Mingozzi. “A Unified Exact Method for Solving Different Classes of Vehicle Routing Problems.” Mathematical Programming, vol. 120, no. 2, 2008, pp. 347–380., \doi{https://doi.org/10.1007/s10107-008-0218-9}. 
+\bibitem{Dupacova et al. 2003}Dupacova, J., et al. “Scenario Reduction in Stochastic Programming.” Mathematical Programming, vol. 95, no. 3, 2003, pp. 493–511., \doi{https://doi.org/10.1007/s10107-002-0331-0}. 
+\bibitem{Romisch 2009}Römisch, Werner. “Scenario Reduction Techniques in Stochastic Programming.” Stochastic Algorithms: Foundations and Applications, 2009, pp. 1–14., \doi{https://doi.org/10.1007/978-3-642-04944-6\_1}. 
+\bibitem{Carrion et al. 2007}Carrion, Miguel, et al. “A Stochastic Programming Approach to Electric Energy Procurement for Large Consumers.” IEEE Transactions on Power Systems, vol. 22, no. 2, 2007, pp. 744–754., \doi{https://doi.org/10.1109/tpwrs.2007.895164}. 
+\bibitem{Morales et al. 2009}Morales, J.M., et al. “Scenario Reduction for Futures Market Trading in Electricity Markets.” IEEE Transactions on Power Systems, vol. 24, no. 2, 2009, pp. 878–888., \doi{https://doi.org/10.1109/tpwrs.2009.2016072}. 
+\bibitem{Stochastic Programming} Kall, Peter, and Stein W. Wallace. Stochastic Programming. John Wiley & Sons, 1997. 
+\bibitem{Kernel}Biase, Fausto Di, and Rüdiger Urbanke. “An Algorithm to Calculate the Kernel of Certain Polynomial Ring Homomorphisms.” Experimental Mathematics, vol. 4, no. 3, 1995, pp. 227–234., \doi{https://doi.org/10.1080/10586458.1995.10504323}.
+
+
+
+
+\end{thebibliography}
+\end{document}
